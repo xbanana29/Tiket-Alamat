@@ -1,0 +1,37 @@
+name: tiket_gudang
+description: "Tiket Alamat — cetak tanda ambil barang, sak & minyak."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  pocketbase: ^0.24.0+1
+  print_bluetooth_thermal: ^1.2.1
+  esc_pos_utils_plus: ^2.0.4
+  path_provider: ^2.1.6
+  connectivity_plus: ^7.3.1
+  intl: ^0.20.3
+  permission_handler: 12.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-400.ttf
+          weight: 400
+        - asset: assets/fonts/Archivo-600.ttf
+          weight: 600
+        - asset: assets/fonts/Archivo-800.ttf
+          weight: 800
