@@ -2,10 +2,13 @@ import 'package:pocketbase/pocketbase.dart';
 
 import 'models.dart';
 
-/// Unggah tiket ke PocketBase. Koleksi `tiket`, lihat pb_schema.json di root repo.
+/// Sinkronisasi tiket dengan PocketBase. Koleksi `tiket`, lihat pb_schema.json.
 ///
-/// ponytail: push langsung + retry saat konektivitas kembali, tanpa background
-/// worker. Kalau perlu sync saat app tertutup, baru tambah workmanager.
+/// `waktu` selalu disimpan UTC di server dan dikembalikan ke waktu lokal saat
+/// ditarik — supaya dua HP di zona waktu berbeda tetap sepakat soal urutan.
+///
+/// ponytail: push langsung + tarik per tanggal, tanpa background worker dan
+/// tanpa realtime subscribe. Tambahkan kalau ternyata perlu update seketika.
 /// True bila galat ini tidak akan hilang hanya dengan mencoba lagi: server
 /// sudah menerima requestnya dan menolak **isinya** (validasi field, enum di
 /// luar daftar, unique bentrok).
@@ -29,6 +32,49 @@ class Sync {
       _pb = PocketBase(url);
     }
     return _pb!;
+  }
+
+  /// Ambil tiket milik SEMUA perangkat untuk satu tanggal (waktu lokal).
+  ///
+  /// Ditarik per tanggal, bukan seluruh riwayat: tab Daftar memang tampil per
+  /// tanggal, jadi yang diambil persis yang sedang dilihat. Riwayat setahun
+  /// tidak ikut terseret tiap sinkronisasi.
+  Future<List<Tiket>> tarik(String url, DateTime tanggal) async {
+    if (url.trim().isEmpty) throw Exception('URL server kosong');
+    // `waktu` disimpan UTC di server, sedangkan tanggal yang dilihat petugas
+    // waktu lokal — batasnya harus dikonversi, bukan dipotong mentah.
+    final mulai = DateTime(tanggal.year, tanggal.month, tanggal.day).toUtc();
+    final selesai = mulai.add(const Duration(days: 1));
+    final rekaman = await _client(url).collection('tiket').getFullList(
+          filter: 'waktu >= "${_pbWaktu(mulai)}" && waktu < "${_pbWaktu(selesai)}"',
+        );
+    return rekaman.map(_keTiket).toList();
+  }
+
+  /// Format tanggal yang dimengerti filter PocketBase: "YYYY-MM-DD HH:MM:SS".
+  static String _pbWaktu(DateTime d) =>
+      d.toUtc().toIso8601String().replaceFirst('T', ' ').substring(0, 19);
+
+  Tiket _keTiket(RecordModel r) {
+    final d = r.toJson();
+    return Tiket(
+      id: d['tiket_id'] as String,
+      pelanggan: d['pelanggan'] as String,
+      // Server mengirim "2026-08-01 19:35:42.705Z" — spasi, bukan 'T'.
+      waktu: DateTime.parse((d['waktu'] as String).replaceFirst(' ', 'T'))
+          .toLocal(),
+      petugas: d['petugas'] as String? ?? '',
+      mode: d['mode'] as String,
+      items: ((d['items'] ?? []) as List)
+          .map((e) => Item.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      jerigen: ((d['jerigen'] ?? 0) as num).toInt(),
+      // Ada di server, berarti sudah terkirim.
+      status: statusTerkirim,
+      revisi: ((d['revisi'] ?? []) as List)
+          .map((e) => Revisi.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+    );
   }
 
   /// Kirim satu tiket. Melempar bila gagal — pemanggil biarkan status tetap antri.

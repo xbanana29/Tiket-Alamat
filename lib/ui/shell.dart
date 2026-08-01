@@ -48,9 +48,8 @@ class Shell extends StatelessWidget {
                     child: Segmen(
                       labels: const ['Pesanan', 'Daftar', 'Pengaturan'],
                       terpilih: ['pesanan', 'daftar', 'atur'].indexOf(s.tab),
-                      onPilih: (i) => s.ubah(
-                        () => s.tab = ['pesanan', 'daftar', 'atur'][i],
-                      ),
+                      onPilih: (i) =>
+                          s.bukaTab(['pesanan', 'daftar', 'atur'][i]),
                       fontSize: f * .74,
                       berbingkai: false,
                       padding: const EdgeInsets.symmetric(

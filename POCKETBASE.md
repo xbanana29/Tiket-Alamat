@@ -240,8 +240,17 @@ adb reverse tcp:8090 tcp:8090
 
 ## Batasan yang perlu diketahui AI
 
-- **Tidak ada** pull/download tiket dari server ke HP — sync **satu arah** (device → PB).  
-- **Tidak ada** multi-device conflict resolution.  
+- Sync **dua arah**, tapi tarikannya **per tanggal**, bukan seluruh riwayat:
+  app hanya meminta tiket untuk tanggal yang sedang dibuka di tab Daftar
+  (filter `waktu >= awal-hari && waktu < awal-hari-berikutnya`, dalam UTC).
+  Server perlu melayani query filter itu dengan lancar; jangan hapus atau
+  ganti tipe field `waktu`.
+- **Resolusi konflik seadanya:** tiket lokal yang belum terkirim selalu menang;
+  selebihnya versi server yang menang. Tidak ada merge per-field, tidak ada
+  vector clock. Dua petugas mengedit tiket yang sama nyaris bersamaan =
+  yang terakhir push menang.
+- Tidak ada realtime/subscribe — tarikan hanya saat tab Daftar dibuka, tanggal
+  digeser, app mulai, dan setelah unggah.  
 - Antrian hanya dicoba saat app hidup + online (`connectivity_plus`); bukan workmanager background.  
 - Filter `tiket_id='...'` raw — ID lokal = timestamp microsecond (aman); jangan ganti ke input user mentah.  
 - `pb.rejekiamerta.com` harus HTTPS di production Android.  

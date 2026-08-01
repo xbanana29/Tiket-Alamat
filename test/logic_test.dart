@@ -254,6 +254,60 @@ void main() {
     });
   });
 
+  group('gabungTiket', () {
+    Tiket t(String id, {String pelanggan = 'A', String status = statusTerkirim, int menit = 0}) =>
+        Tiket(
+          id: id,
+          pelanggan: pelanggan,
+          waktu: DateTime(2026, 8, 1, 9, menit),
+          petugas: 'Andi',
+          mode: 'sak',
+          items: const [Item('GULAKU', 1)],
+          status: status,
+        );
+
+    test('tiket perangkat lain ditambahkan', () {
+      final h = gabungTiket([t('a')], [t('b')]);
+      expect(h.map((e) => e.id).toSet(), {'a', 'b'});
+    });
+
+    test('versi server menang untuk tiket yang sudah terkirim', () {
+      final h = gabungTiket([t('a', pelanggan: 'LAMA')],
+          [t('a', pelanggan: 'DIUBAH DI HP LAIN')]);
+      expect(h.single.pelanggan, 'DIUBAH DI HP LAIN');
+    });
+
+    test('lokal yang belum terkirim TIDAK ditimpa server', () {
+      // Ketikan petugas yang belum sempat naik tidak boleh hilang.
+      final h = gabungTiket(
+        [t('a', pelanggan: 'BELUM NAIK', status: statusAntri)],
+        [t('a', pelanggan: 'VERSI SERVER')],
+      );
+      expect(h.single.pelanggan, 'BELUM NAIK');
+      expect(h.single.status, statusAntri);
+    });
+
+    test('tiket Ditolak juga tidak ditimpa server', () {
+      final h = gabungTiket(
+        [t('a', pelanggan: 'DITOLAK TAPI PUNYAKU', status: statusDitolak)],
+        [t('a', pelanggan: 'VERSI SERVER')],
+      );
+      expect(h.single.pelanggan, 'DITOLAK TAPI PUNYAKU');
+    });
+
+    test('hasil urut terbaru dulu', () {
+      final h = gabungTiket([t('a', menit: 10)], [t('b', menit: 30), t('c', menit: 20)]);
+      expect(h.map((e) => e.id), ['b', 'c', 'a']);
+    });
+
+    test('tidak menduplikasi saat ditarik dua kali', () {
+      final server = [t('a'), t('b')];
+      final sekali = gabungTiket([], server);
+      final duakali = gabungTiket(sekali, server);
+      expect(duakali.length, 2);
+    });
+  });
+
   group('persistensi', () {
     test('tiket bolak-balik lewat JSON tanpa kehilangan data', () {
       final t = _tiket(

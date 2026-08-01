@@ -71,6 +71,29 @@ Tiket terapkanEdit(
   );
 }
 
+/// Gabungkan tiket dari server ke dalam riwayat lokal.
+///
+/// Aturan tabrakan, sengaja sederhana:
+/// - Tiket lokal yang **belum terkirim** selalu menang. Isinya ada perubahan
+///   yang belum sampai ke server; menimpanya dengan versi server = kehilangan
+///   ketikan petugas.
+/// - Selain itu versi server yang menang, karena perangkat lain mungkin baru
+///   mengubahnya.
+/// - Tiket yang hanya ada di server ditambahkan.
+///
+/// Urutan hasil: terbaru dulu, sama seperti riwayat lokal.
+List<Tiket> gabungTiket(List<Tiket> lokal, List<Tiket> server) {
+  final hasil = <String, Tiket>{for (final t in lokal) t.id: t};
+  for (final s in server) {
+    final ada = hasil[s.id];
+    if (ada != null && belumTerkirim(ada.status)) continue; // lokal menang
+    hasil[s.id] = s;
+  }
+  final urut = hasil.values.toList()
+    ..sort((a, b) => b.waktu.compareTo(a.waktu));
+  return urut;
+}
+
 String kunciTanggal(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
@@ -193,7 +216,10 @@ class AppState extends ChangeNotifier {
       if (online) unawaited(unggahAntrian(diam: true));
     });
     notifyListeners();
-    if (online) unawaited(unggahAntrian(diam: true));
+    if (online) {
+      unawaited(unggahAntrian(diam: true));
+      unawaited(tarikTiket()); // tiket perangkat lain untuk hari ini
+    }
   }
 
   bool _adaJaringan(List<ConnectivityResult> r) =>
@@ -445,6 +471,55 @@ class AppState extends ChangeNotifier {
 
   // ---------- sync ----------
 
+  /// Pindah tab. Membuka Daftar sekalian menarik tiket perangkat lain.
+  void bukaTab(String t) {
+    ubah(() => tab = t);
+    if (t == 'daftar') unawaited(tarikTiket());
+  }
+
+  /// Geser tanggal yang dilihat di Daftar; [hari] null berarti kembali hari ini.
+  void pilihTanggal({int? hari}) {
+    ubah(() => tanggal = hari == null
+        ? DateTime.now()
+        : tanggal.add(Duration(days: hari)));
+    unawaited(tarikTiket());
+  }
+
+  bool _sedangTarik = false;
+
+  /// Sedang mengambil tiket perangkat lain — dipakai untuk indikator di Daftar.
+  bool get sedangTarik => _sedangTarik;
+
+  /// Ambil tiket semua perangkat untuk [tanggal] yang sedang dilihat.
+  ///
+  /// Dipanggil otomatis saat tab Daftar dibuka, tanggal digeser, dan setelah
+  /// unggah — supaya petugas tidak perlu tahu ada tombol sinkronisasi.
+  Future<void> tarikTiket({bool diam = true}) async {
+    if (_sedangTarik || !online) {
+      if (!diam && !online) tampilToast('Luring — tidak bisa ambil dari server');
+      return;
+    }
+    final tanggalDiminta = tanggal;
+    ubah(() => _sedangTarik = true);
+    try {
+      final dariServer = await _sync.tarik(serverUrl, tanggalDiminta);
+      // Petugas bisa sudah menggeser tanggal saat request berjalan; hasil yang
+      // basi tidak boleh menimpa apa yang sedang dilihat.
+      if (kunciTanggal(tanggalDiminta) != kunciTanggal(tanggal)) return;
+      final punyaLokal = riwayat.map((t) => t.id).toSet();
+      final baru = dariServer.where((t) => !punyaLokal.contains(t.id)).length;
+      riwayat = gabungTiket(riwayat, dariServer);
+      _simpan();
+      if (!diam) {
+        tampilToast(baru > 0 ? '$baru tiket baru dari server' : 'Sudah terbaru');
+      }
+    } on Object catch (e) {
+      if (!diam) tampilToast('Gagal ambil dari server: $e');
+    } finally {
+      ubah(() => _sedangTarik = false);
+    }
+  }
+
   Future<void> unggahAntrian({bool diam = false}) async {
     // Termasuk yang berstatus Ditolak: itu penanda, bukan jalan buntu — tiketnya
     // tetap dicoba lagi supaya ikut masuk begitu skema server diperbaiki.
@@ -488,6 +563,9 @@ class AppState extends ChangeNotifier {
       }
     }
     if (berubah) ubah(() {}, simpan: true);
+    // Sekalian ambil punya perangkat lain — sekali tekan "Unggah sekarang"
+    // menyelesaikan kedua arah.
+    if (berhasil > 0 || ditolak == 0) unawaited(tarikTiket());
     if (diam) return;
 
     tampilToast(switch ((galat, ditolak)) {

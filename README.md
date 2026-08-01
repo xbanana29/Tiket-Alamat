@@ -84,6 +84,24 @@ berubah menjadi `Terkirim`. Antrian dicoba ulang otomatis saat internet kembali.
 Koleksi `tiket` sudah terimport. Di HP cukup pastikan URL di **Pengaturan →
 Server & antrian** = `https://pb.rejekiamerta.com` (sudah jadi default di kode).
 
+### Tiket muncul di semua HP
+
+Sinkronisasinya dua arah. Tiket dari perangkat lain ditarik otomatis saat:
+app dibuka, tab **Daftar** dibuka, tanggal digeser, dan setelah **Unggah
+sekarang** — petugas tidak perlu menekan apa pun.
+
+Yang ditarik hanya tiket **untuk tanggal yang sedang dilihat**, bukan seluruh
+riwayat, supaya tidak makin berat tiap tahun.
+
+Kalau tiket yang sama ada di dua tempat: **versi lokal yang belum terkirim
+selalu menang** (ketikan petugas tidak boleh hilang), selain itu versi server
+yang menang. Tidak ada merge per-field — dua orang mengedit tiket yang sama
+nyaris bersamaan, yang terakhir mengunggah yang menang.
+
+Jam di server disimpan **UTC**, ditampilkan **waktu lokal HP**. Tiket 19:35 UTC
+tampil 02:35 WIB. Itu disengaja: dua HP yang beda zona waktu tetap sepakat soal
+urutan kejadian.
+
 Uji dengan PocketBase lokal:
 
 ```

@@ -23,12 +23,10 @@ class TabDaftar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _Panah('‹', () => s.ubah(
-                    () => s.tanggal = s.tanggal.subtract(const Duration(days: 1)),
-                  )),
+              _Panah('‹', () => s.pilihTanggal(hari: -1)),
               Expanded(
                 child: Tap(
-                  onTap: () => s.ubah(() => s.tanggal = DateTime.now()),
+                  onTap: () => s.pilihTanggal(),
                   child: Column(
                     children: [
                       Text(
@@ -39,16 +37,16 @@ class TabDaftar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${terpilih.length} TIKET · KETUK UNTUK HARI INI',
+                        s.sedangTarik
+                            ? 'MENGAMBIL DARI SERVER…'
+                            : '${terpilih.length} TIKET · KETUK UNTUK HARI INI',
                         style: micro(f * .94),
                       ),
                     ],
                   ),
                 ),
               ),
-              _Panah('›', () => s.ubah(
-                    () => s.tanggal = s.tanggal.add(const Duration(days: 1)),
-                  )),
+              _Panah('›', () => s.pilihTanggal(hari: 1)),
             ],
           ),
         ),
