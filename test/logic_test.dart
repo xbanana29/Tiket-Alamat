@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pocketbase/pocketbase.dart' show ClientException;
 import 'package:tiket_gudang/models.dart';
 import 'package:tiket_gudang/printer.dart';
 import 'package:tiket_gudang/state.dart';
+import 'package:tiket_gudang/store.dart';
+import 'package:tiket_gudang/sync.dart';
 
 // ponytail: satu file test untuk logika yang bisa salah diam-diam.
 // Widget test dilewati — UI diverifikasi langsung di perangkat.
@@ -21,6 +24,39 @@ Tiket _tiket({
   items: items,
   jerigen: jerigen,
   revisi: revisi,
+);
+
+/// Store yang tidak menyentuh disk — unit test tak punya path_provider.
+class _StoreHampa extends Store {
+  @override
+  Future<Map<String, dynamic>> load() async => {};
+  @override
+  void save(Map<String, dynamic> data) {}
+  @override
+  Future<void> flush() async {}
+}
+
+/// Sync palsu: melempar galat yang sudah ditentukan untuk id tertentu.
+class _SyncPalsu extends Sync {
+  final Map<String, Object> galat;
+  final terkirim = <String>[];
+  _SyncPalsu(this.galat);
+
+  @override
+  Future<void> push(String url, Tiket t) async {
+    final e = galat[t.id];
+    if (e != null) throw e;
+    terkirim.add(t.id);
+  }
+}
+
+Tiket _antri(String id) => Tiket(
+  id: id,
+  pelanggan: 'TOKO $id',
+  waktu: DateTime(2026, 8, 1, 9, 41),
+  petugas: 'Andi',
+  mode: 'sak',
+  items: const [Item('GULAKU', 1)],
 );
 
 void main() {
@@ -136,6 +172,65 @@ void main() {
     test('tanggal daftar berformat hari Indonesia', () {
       expect(fmtTanggal(DateTime(2026, 8, 1)), 'Sabtu, 1 Agu 2026');
       expect(fmtTanggal(DateTime(2026, 8, 2)), 'Minggu, 2 Agu 2026');
+    });
+  });
+
+  group('ditolakPermanen', () {
+    test('validasi 400/422 permanen; auth, rate limit, jaringan tidak', () {
+      expect(ditolakPermanen(ClientException(statusCode: 400)), isTrue);
+      expect(ditolakPermanen(ClientException(statusCode: 422)), isTrue);
+      // Ini menolak SEMUA tiket, bukan hanya satu — antrian harus berhenti.
+      expect(ditolakPermanen(ClientException(statusCode: 401)), isFalse);
+      expect(ditolakPermanen(ClientException(statusCode: 403)), isFalse);
+      expect(ditolakPermanen(ClientException(statusCode: 429)), isFalse);
+      expect(ditolakPermanen(ClientException(statusCode: 500)), isFalse);
+      expect(ditolakPermanen(ClientException(statusCode: 0)), isFalse); // jaringan
+      expect(ditolakPermanen(Exception('apa saja')), isFalse);
+    });
+  });
+
+  group('unggahAntrian', () {
+    AppState buat(_SyncPalsu s, List<Tiket> riwayat) {
+      final app = AppState(store: _StoreHampa(), sync: s)..riwayat = riwayat;
+      return app;
+    }
+
+    test('tiket yang ditolak server tidak memblokir sisa antrian', () async {
+      final s = _SyncPalsu({'b': ClientException(statusCode: 400)});
+      final app = buat(s, [_antri('a'), _antri('b'), _antri('c')]);
+
+      await app.unggahAntrian(diam: true);
+
+      // 'c' ada DI BELAKANG record cacat — dulu ini tidak pernah terkirim.
+      expect(s.terkirim, ['a', 'c']);
+      expect(app.riwayat.singleWhere((t) => t.id == 'c').status, statusTerkirim);
+      // Yang ditolak tetap antri supaya ikut terkirim bila server diperbaiki.
+      expect(app.riwayat.singleWhere((t) => t.id == 'b').status, statusAntri);
+      expect(app.queue, 1);
+    });
+
+    test('galat jaringan tetap menghentikan antrian', () async {
+      final s = _SyncPalsu({'b': ClientException(statusCode: 0)});
+      final app = buat(s, [_antri('a'), _antri('b'), _antri('c')]);
+
+      await app.unggahAntrian(diam: true);
+
+      expect(s.terkirim, ['a']); // berhenti di 'b', 'c' tidak dicoba
+      expect(app.queue, 2);
+    });
+
+    test('auth ditolak menghentikan antrian, bukan melewati satu per satu',
+        () async {
+      final s = _SyncPalsu({
+        'a': ClientException(statusCode: 403),
+        'b': ClientException(statusCode: 403),
+      });
+      final app = buat(s, [_antri('a'), _antri('b')]);
+
+      await app.unggahAntrian(diam: true);
+
+      expect(s.terkirim, isEmpty);
+      expect(app.queue, 2);
     });
   });
 

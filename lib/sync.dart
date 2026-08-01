@@ -6,6 +6,19 @@ import 'models.dart';
 ///
 /// ponytail: push langsung + retry saat konektivitas kembali, tanpa background
 /// worker. Kalau perlu sync saat app tertutup, baru tambah workmanager.
+/// True bila galat ini tidak akan hilang hanya dengan mencoba lagi: server
+/// sudah menerima requestnya dan menolak **isinya** (validasi field, enum di
+/// luar daftar, unique bentrok).
+///
+/// 401/403 (auth) dan 429 (rate limit) sengaja **tidak** termasuk — itu masalah
+/// server-wide yang menolak semua tiket, jadi antrian harus berhenti, bukan
+/// melewati tiket satu per satu. Galat jaringan punya `statusCode` 0.
+bool ditolakPermanen(Object e) {
+  if (e is! ClientException) return false;
+  final c = e.statusCode;
+  return c >= 400 && c < 500 && c != 401 && c != 403 && c != 408 && c != 429;
+}
+
 class Sync {
   String _url = '';
   PocketBase? _pb;

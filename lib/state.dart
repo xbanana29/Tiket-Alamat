@@ -446,6 +446,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     var berhasil = 0;
+    var ditolak = 0;
     String? galat;
     for (final t in antri) {
       try {
@@ -455,8 +456,24 @@ class AppState extends ChangeNotifier {
             .map((r) => r.id == t.id ? r.copyWith(status: statusTerkirim) : r)
             .toList();
       } on Object catch (e) {
+        if (ditolakPermanen(e)) {
+          // Server menolak isi tiket ini. Lewati saja — kalau dihentikan
+          // (`break`), satu record cacat memblokir SELURUH antrian di
+          // belakangnya sampai app di-update.
+          //
+          // Tiketnya tetap berstatus antri, jadi begitu skema server
+          // diperbaiki ia ikut terunggah sendiri tanpa campur tangan.
+          //
+          // ponytail: tidak menambah status "Ditolak" tersendiri — jumlahnya
+          // cukup dilaporkan di toast. Tambahkan status kalau ternyata sering
+          // terjadi dan petugas perlu melihat tiket mana yang bermasalah.
+          ditolak++;
+          continue;
+        }
+        // Jaringan mati, server down, auth ditolak, kena rate limit — semuanya
+        // menolak tiket berikutnya juga, jadi berhenti dan coba lagi nanti.
         galat = '$e';
-        break; // server bermasalah — sisanya percuma dicoba sekarang
+        break;
       }
     }
     if (berhasil > 0) ubah(() {}, simpan: true);
@@ -464,10 +481,10 @@ class AppState extends ChangeNotifier {
       if (berhasil > 0) notifyListeners();
       return;
     }
-    tampilToast(
-      galat == null
-          ? '$berhasil tiket terunggah ke PocketBase'
-          : 'Gagal unggah: $galat',
-    );
+    tampilToast(switch ((galat, ditolak)) {
+      (final g?, _) => 'Gagal unggah: $g',
+      (_, > 0) => '$berhasil terunggah · $ditolak ditolak server',
+      _ => '$berhasil tiket terunggah ke PocketBase',
+    });
   }
 }

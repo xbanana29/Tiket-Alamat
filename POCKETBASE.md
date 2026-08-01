@@ -222,17 +222,28 @@ Urutan aman:
 
 Membalik urutan ini = gudang berhenti sinkron tanpa pesan error yang jelas.
 
-### 2. Satu tiket gagal → sisa antrian ikut berhenti
+### 2. Record yang ditolak dilewati, tapi tidak pernah menyerah
 
-`unggahAntrian()` di `lib/state.dart` memakai `break` saat push pertama gagal.
-Jadi satu record yang ditolak server (mis. `pelanggan` melebihi batas, `mode`
-di luar enum, unique index bentrok) **memblokir seluruh antrian di belakangnya**,
-bukan hanya dirinya sendiri.
+`unggahAntrian()` di `lib/state.dart` membedakan dua jenis kegagalan:
 
-Artinya untuk server: **validasi yang terlalu ketat lebih berbahaya daripada
-longgar.** Kalau sebuah field ditolak permanen, antrian device itu macet
-selamanya sampai app di-update. Jangan tambahkan field `required` baru di
-koleksi `tiket` tanpa mengubah klien.
+| Kondisi | Perilaku klien |
+|---|---|
+| 4xx validasi (400/422, unique bentrok, enum salah) | **lewati tiket itu**, lanjut ke berikutnya |
+| 401 / 403 / 408 / 429 / 5xx / jaringan mati | **hentikan antrian**, coba lagi nanti |
+
+Klasifikasinya ada di `ditolakPermanen()` (`lib/sync.dart`).
+
+Yang perlu diketahui server:
+
+- Tiket yang ditolak **tetap berstatus `Menunggu unggah`** dan dicoba lagi
+  setiap sinkronisasi. Kalau server menolaknya permanen, request itu berulang
+  selamanya dan badge **ANTRI** tidak pernah nol. Perbaiki skema/data-nya
+  supaya tiketnya bisa masuk — tidak ada tombol "buang tiket ini" di app.
+- Menambahkan field `required` baru di koleksi `tiket` akan membuat **semua**
+  tiket lama ditolak. Klien tidak akan berhenti, tapi juga tidak akan pernah
+  berhasil. Jangan lakukan tanpa mengubah `lib/sync.dart`.
+- 401/403 dari rules yang baru dikunci akan **menghentikan** antrian total —
+  itu memang disengaja, lihat poin 1.
 
 ### 3. Tidak ada retry backoff, tidak ada batas ukuran
 
@@ -256,7 +267,7 @@ sebagai sumber kebenaran untuk urutan kejadian lintas device; pakai
 Setiap kali tiket diedit, satu entri ditambahkan ke array `revisi` dan
 **seluruh array ikut dikirim ulang**. Tiket yang diedit puluhan kali membuat
 payload membesar terus. `maxSize` field `revisi` di `pb_schema.json` = 50000;
-kalau terlampaui, push tiket itu gagal permanen → lihat poin 2 (antrian macet).
+kalau terlampaui, push tiket itu ditolak selamanya → lihat poin 2.
 
 ### 6. Status `Terkirim` hanya ada di HP
 
