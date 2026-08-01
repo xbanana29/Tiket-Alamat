@@ -16,7 +16,7 @@
 | API | `https://pb.rejekiamerta.com` — sama dengan default `lib/state.dart`, app tidak perlu diubah |
 | Admin UI | `https://pb.rejekiamerta.com/_/` |
 | Admin email | `nikokevin29@gmail.com` |
-| Admin password | `2lVWgucumQ4mW1R2VRUV` |
+| Admin password | **tidak disimpan di repo** — ada di `/root/pocketbase/.admin-password` pada VPS |
 | Versi | PocketBase 0.39.10 |
 | Host | VPS `204.168.237.146`, container Docker `pocketbase`, bind `127.0.0.1:8090` |
 | Compose | `/root/pocketbase/docker-compose.yml` (+ runbook di `/root/pocketbase/README.md`) |
@@ -26,10 +26,60 @@
 | DNS | Cloudflare A `pb.rejekiamerta.com` → `204.168.237.146` (proxied) |
 | Backup | `/root/backup_pocketbase.sh`, cron harian 21:00 → `r2:vst-laravel/backups/pocketbase`, retensi 30 hari, notif Telegram |
 
-> ⚠️ Password di atas adalah **superuser produksi** dan tersimpan di riwayat git
-> selamanya. Repo ini private; begitu ada orang di luar tim yang dapat akses repo,
-> **rotasi password lewat Admin UI** dan perbarui baris ini + file
-> `/root/pocketbase/.admin-password` di VPS.
+> ⚠️ **Jangan pernah menulis password di file ini.** Versi sebelumnya sempat
+> memuat password superuser dalam teks biasa; commit itu masih ada di riwayat
+> git dan tidak bisa dihapus begitu saja. Password tersebut **sudah dirotasi**,
+> jadi yang tertinggal di riwayat tidak lagi berlaku.
+>
+> Kalau perlu ganti lagi, lihat [Rotasi password](#rotasi-password-superuser).
+
+### Rotasi password superuser
+
+Password baru (jalankan di mana saja, jangan pakai yang pernah ditulis di chat
+atau file):
+
+```bash
+openssl rand -base64 24
+```
+
+**Cara A — Admin UI (paling gampang):**
+`https://pb.rejekiamerta.com/_/` → login → menu profil kanan atas →
+**Change password** → simpan.
+
+**Cara B — dari VPS (kalau lupa password lama):**
+
+```bash
+ssh root@204.168.237.146
+docker exec -it pocketbase /pb/pocketbase superuser upsert nikokevin29@gmail.com 'PASSWORD_BARU'
+```
+
+`upsert` membuat akun bila belum ada dan menimpa password bila sudah ada, jadi
+aman dipakai walau password lama tidak diketahui.
+
+Setelah ganti, simpan di VPS (bukan di repo) dan kunci izinnya:
+
+```bash
+printf '%s\n' 'PASSWORD_BARU' > /root/pocketbase/.admin-password
+chmod 600 /root/pocketbase/.admin-password
+```
+
+Verifikasi password baru dipakai dan yang lama sudah mati:
+
+```bash
+# harus 200 + token
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  https://pb.rejekiamerta.com/api/collections/_superusers/auth-with-password \
+  -H 'Content-Type: application/json' \
+  -d '{"identity":"nikokevin29@gmail.com","password":"PASSWORD_BARU"}'
+
+# harus 400 — kalau masih 200, rotasi belum berhasil
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  https://pb.rejekiamerta.com/api/collections/_superusers/auth-with-password \
+  -H 'Content-Type: application/json' \
+  -d '{"identity":"nikokevin29@gmail.com","password":"PASSWORD_LAMA"}'
+```
+
+Rate limit login = 5 percobaan/menit, jadi jangan menembak berulang kali.
 
 ### Setelan server yang tidak default
 
