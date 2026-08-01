@@ -1,8 +1,7 @@
 # Tiket Alamat
 
 Aplikasi Flutter (Android) untuk mencatat pesanan gudang dan mencetak
-"TANDA AMBIL BARANG" di printer thermal Bluetooth. Diimplementasikan dari
-rancangan `../TiketGudang-standalone.html` (varian tab Pesanan: **struk**).
+"TANDA AMBIL BARANG" di printer thermal Bluetooth.
 
 **by CV Rejeki Amerta Jaya**
 

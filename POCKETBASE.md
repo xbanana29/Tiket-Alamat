@@ -156,6 +156,11 @@ Opsi praktis minimal:
 
 Kalau rules diganti ke butuh auth, **update `lib/sync.dart`** supaya login/auth dulu sebelum `push`. Saat ini client **tanpa auth**.
 
+> ⚠️ **Urutannya penting.** Mengunci rules sebelum klien punya auth akan
+> menghentikan sinkronisasi seluruh device secara diam-diam. Baca
+> [Kekurangan sisi klien](#kekurangan-sisi-klien-yang-berdampak-ke-server)
+> poin 1 & 2 sebelum menyentuh rules.
+
 ### 6. Arahkan app
 
 Default kode sudah:
@@ -195,6 +200,84 @@ adb reverse tcp:8090 tcp:8090
 - Antrian hanya dicoba saat app hidup + online (`connectivity_plus`); bukan workmanager background.  
 - Filter `tiket_id='...'` raw — ID lokal = timestamp microsecond (aman); jangan ganti ke input user mentah.  
 - `pb.rejekiamerta.com` harus HTTPS di production Android.  
+
+---
+
+## Kekurangan sisi klien yang berdampak ke server
+
+> Bagian ini untuk AI yang mengurus VPS. Semuanya **sudah terverifikasi di kode**,
+> bukan dugaan. Baca sebelum mengunci rules atau menyalahkan server saat ada
+> perilaku aneh.
+
+### 1. Klien tanpa auth sama sekali
+
+`lib/sync.dart` membuat `PocketBase(url)` polos — tidak ada `authWithPassword`,
+tidak ada header token. Konsekuensi: **begitu Anda mengunci `createRule`/`updateRule`,
+semua unggahan langsung gagal 403** dan tiket menumpuk di HP tanpa ada yang sadar.
+
+Urutan aman:
+
+1. Tambahkan auth di `lib/sync.dart` **lebih dulu**, rilis APK-nya ke perangkat.
+2. Baru kunci rules di server.
+
+Membalik urutan ini = gudang berhenti sinkron tanpa pesan error yang jelas.
+
+### 2. Satu tiket gagal → sisa antrian ikut berhenti
+
+`unggahAntrian()` di `lib/state.dart` memakai `break` saat push pertama gagal.
+Jadi satu record yang ditolak server (mis. `pelanggan` melebihi batas, `mode`
+di luar enum, unique index bentrok) **memblokir seluruh antrian di belakangnya**,
+bukan hanya dirinya sendiri.
+
+Artinya untuk server: **validasi yang terlalu ketat lebih berbahaya daripada
+longgar.** Kalau sebuah field ditolak permanen, antrian device itu macet
+selamanya sampai app di-update. Jangan tambahkan field `required` baru di
+koleksi `tiket` tanpa mengubah klien.
+
+### 3. Tidak ada retry backoff, tidak ada batas ukuran
+
+- Retry hanya dipicu ulang saat konektivitas berubah atau user menekan
+  **Unggah sekarang** — tidak ada exponential backoff.
+- Semua tiket antri dikirim **satu per satu berurutan**, tanpa batch dan tanpa
+  batas jumlah. Device yang luring seminggu akan menembak ratusan request
+  beruntun begitu online. Siapkan rate limit yang **longgar** (atau kecualikan
+  koleksi `tiket`), jangan yang agresif.
+
+### 4. Tidak ada penanganan jam yang meleset
+
+`waktu` dikirim dari jam HP (`DateTime.now().toUtc()`). Tidak ada sinkronisasi
+NTP dan tidak ada koreksi. HP dengan jam salah akan menghasilkan record dengan
+`waktu` salah, dan **server menerimanya apa adanya**. Jangan pakai `waktu`
+sebagai sumber kebenaran untuk urutan kejadian lintas device; pakai
+`created` bawaan PocketBase kalau butuh urutan yang andal.
+
+### 5. `revisi` tumbuh tanpa batas
+
+Setiap kali tiket diedit, satu entri ditambahkan ke array `revisi` dan
+**seluruh array ikut dikirim ulang**. Tiket yang diedit puluhan kali membuat
+payload membesar terus. `maxSize` field `revisi` di `pb_schema.json` = 50000;
+kalau terlampaui, push tiket itu gagal permanen → lihat poin 2 (antrian macet).
+
+### 6. Status `Terkirim` hanya ada di HP
+
+Tidak ada field status di server. HP menandai `Terkirim` **setelah** panggilan
+sukses. Kalau response hilang di tengah jalan (timeout padahal server sudah
+menyimpan), HP tetap menganggapnya antri dan akan mengirim ulang. Upsert by
+`tiket_id` yang menyelamatkan keadaan ini — **jangan hapus unique index
+`tiket_id`**, itu satu-satunya pengaman terhadap duplikat.
+
+### 7. Tidak ada migrasi URL otomatis
+
+Device yang pernah dijalankan dengan URL lama menyimpannya di `data.json`.
+Mengganti default di kode **tidak** mengubah device yang sudah jalan — harus
+diubah manual di **Pengaturan → Server & antrian**. Saat memindahkan domain,
+hitung device lama sebagai pekerjaan manual.
+
+### 8. Tidak ada backup di sisi HP
+
+`data.json` ada di direktori dokumen app. **Uninstall app = data hilang.**
+Server adalah satu-satunya salinan tahan lama, jadi backup `pb_data` bukan
+opsional — lihat checklist di bawah.
 
 ---
 
