@@ -235,10 +235,15 @@ Klasifikasinya ada di `ditolakPermanen()` (`lib/sync.dart`).
 
 Yang perlu diketahui server:
 
-- Tiket yang ditolak **tetap berstatus `Menunggu unggah`** dan dicoba lagi
-  setiap sinkronisasi. Kalau server menolaknya permanen, request itu berulang
-  selamanya dan badge **ANTRI** tidak pernah nol. Perbaiki skema/data-nya
-  supaya tiketnya bisa masuk — tidak ada tombol "buang tiket ini" di app.
+- Tiket yang ditolak diberi status **`Ditolak server`** (chip merah di tab
+  Daftar + daftar ringkas di **Pengaturan → Server & antrian**), tapi **tetap
+  dihitung belum terkirim dan tetap dicoba lagi** setiap sinkronisasi. Status
+  itu penanda, bukan jalan buntu — begitu skema server diperbaiki, tiketnya
+  masuk sendiri tanpa campur tangan petugas.
+- Karena tetap dicoba ulang, server yang menolak permanen akan menerima request
+  yang sama berulang selamanya dan badge **ANTRI** tidak pernah nol. Perbaiki
+  skema/data-nya supaya tiketnya bisa masuk — tidak ada tombol "buang tiket
+  ini" di app.
 - Menambahkan field `required` baru di koleksi `tiket` akan membuat **semua**
   tiket lama ditolak. Klien tidak akan berhenti, tapi juga tidak akan pernah
   berhasil. Jangan lakukan tanpa mengubah `lib/sync.dart`.
@@ -269,9 +274,10 @@ Setiap kali tiket diedit, satu entri ditambahkan ke array `revisi` dan
 payload membesar terus. `maxSize` field `revisi` di `pb_schema.json` = 50000;
 kalau terlampaui, push tiket itu ditolak selamanya → lihat poin 2.
 
-### 6. Status `Terkirim` hanya ada di HP
+### 6. Status tiket hanya ada di HP
 
-Tidak ada field status di server. HP menandai `Terkirim` **setelah** panggilan
+Tidak ada field status di server — `Menunggu unggah` / `Ditolak server` /
+`Terkirim` semuanya lokal. HP menandai `Terkirim` **setelah** panggilan
 sukses. Kalau response hilang di tengah jalan (timeout padahal server sudah
 menyimpan), HP tetap menganggapnya antri dan akan mengirim ulang. Upsert by
 `tiket_id` yang menyelamatkan keadaan ini — **jangan hapus unique index

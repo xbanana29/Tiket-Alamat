@@ -60,6 +60,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get badgeOkBg => neutral200;
   Color get badgeOkFg => ink;
 
+  /// Badge tiket yang ditolak server — merah, harus beda dari kuning "antri".
+  Color get badgeTolakBg =>
+      brightness == Brightness.dark ? const Color(0xFF4A1108) : const Color(0xFFFFDAD4);
+  Color get badgeTolakFg =>
+      brightness == Brightness.dark ? const Color(0xFFFF7A5E) : const Color(0xFF8C1200);
+
   static const light = AppPalette(
     ink: Color(0xFF201E1D),
     bg: Color(0xFFF3F2F2),
@@ -196,6 +202,8 @@ Color get badgeAntriBg => _p.badgeAntriBg;
 Color get badgeAntriFg => _p.badgeAntriFg;
 Color get badgeOkBg => _p.badgeOkBg;
 Color get badgeOkFg => _p.badgeOkFg;
+Color get badgeTolakBg => _p.badgeTolakBg;
+Color get badgeTolakFg => _p.badgeTolakFg;
 bool get isDarkPalette => _p.brightness == Brightness.dark;
 
 const kBaseFontSize = 15.0;

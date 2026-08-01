@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../brand.dart';
+import '../models.dart';
 import '../printer.dart';
 import '../state.dart';
 import '../theme.dart';
@@ -245,6 +246,7 @@ class _UtamaState extends State<_Utama> {
                 ],
               ),
             ),
+            if (s.jumlahDitolak > 0) const _TiketDitolak(),
             TombolAksi(
               s.queue > 0 ? 'Unggah sekarang (${s.queue})' : 'Semua tersinkron',
               onTap: s.unggahAntrian,
@@ -314,6 +316,73 @@ class _UtamaState extends State<_Utama> {
 }
 
 /// Printer: pilih perangkat yang sudah di-pair, tes cetak.
+/// Tiket yang ditolak server, lintas tanggal.
+///
+/// Chip "DITOLAK SERVER" di tab Daftar hanya terlihat pada tanggal yang sedang
+/// dibuka; tiket bermasalah dari minggu lalu tidak akan pernah ketemu tanpa
+/// daftar ini.
+class _TiketDitolak extends StatelessWidget {
+  const _TiketDitolak();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final f = fs(context);
+    final ditolak = s.riwayat.where((t) => t.status == statusDitolak).toList();
+    // Cukup beberapa — kalau ratusan, masalahnya di skema server, bukan di tiket.
+    const batas = 5;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      color: badgeTolakBg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${ditolak.length} TIKET DITOLAK SERVER',
+            style: TextStyle(
+              fontSize: f * .68,
+              fontWeight: FontWeight.w800,
+              letterSpacing: f * .68 * .06,
+              color: badgeTolakFg,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final t in ditolak.take(batas))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '${t.tanggalKunci} ${t.jam} · ${t.pelanggan}',
+                style: TextStyle(
+                  fontSize: f * .74,
+                  fontWeight: FontWeight.w600,
+                  color: badgeTolakFg,
+                ),
+              ),
+            ),
+          if (ditolak.length > batas)
+            Text(
+              'dan ${ditolak.length - batas} lainnya',
+              style: TextStyle(fontSize: f * .72, color: badgeTolakFg),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'Isinya ditolak server, bukan gangguan jaringan. Tetap dicoba '
+            'ulang tiap sinkronisasi — hubungi admin server bila menetap.',
+            style: TextStyle(
+              fontSize: f * .7,
+              height: 1.5,
+              color: badgeTolakFg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BlokPrinter extends StatefulWidget {
   const _BlokPrinter();
   @override

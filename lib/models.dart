@@ -28,6 +28,15 @@ class Revisi {
 const statusTerkirim = 'Terkirim';
 const statusAntri = 'Menunggu unggah';
 
+/// Server menolak isi tiket ini (validasi/skema), bukan gangguan jaringan.
+///
+/// Tetap dihitung belum terkirim dan tetap dicoba lagi tiap sinkronisasi —
+/// status ini hanya penanda supaya petugas tahu tiket mana yang bermasalah.
+const statusDitolak = 'Ditolak server';
+
+/// Tiket yang belum sampai ke server, apa pun sebabnya.
+bool belumTerkirim(String status) => status != statusTerkirim;
+
 class Tiket {
   final String id;
   final String pelanggan;

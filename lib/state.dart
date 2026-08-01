@@ -139,7 +139,13 @@ class AppState extends ChangeNotifier {
   double get scale => [0.82, 1.0, 1.14, 1.3][fontStep];
   int get totalSak => items.fold(0, (a, b) => a + b.qty);
   bool get isMinyak => mode == 'minyak';
-  int get queue => riwayat.where((t) => t.status == statusAntri).length;
+  /// Tiket yang belum sampai ke server — termasuk yang ditolak, karena itu juga
+  /// belum tersimpan di mana pun selain HP ini.
+  int get queue => riwayat.where((t) => belumTerkirim(t.status)).length;
+
+  /// Tiket yang ditolak server. Dipakai untuk peringatan di Pengaturan.
+  int get jumlahDitolak =>
+      riwayat.where((t) => t.status == statusDitolak).length;
 
   int qtyOf(String nama) =>
       items.where((i) => i.nama == nama).fold(0, (a, b) => a + b.qty);
@@ -440,34 +446,39 @@ class AppState extends ChangeNotifier {
   // ---------- sync ----------
 
   Future<void> unggahAntrian({bool diam = false}) async {
-    final antri = riwayat.where((t) => t.status == statusAntri).toList();
+    // Termasuk yang berstatus Ditolak: itu penanda, bukan jalan buntu — tiketnya
+    // tetap dicoba lagi supaya ikut masuk begitu skema server diperbaiki.
+    final antri = riwayat.where((t) => belumTerkirim(t.status)).toList();
     if (antri.isEmpty) {
       if (!diam) tampilToast('Semua sudah tersinkron');
       return;
     }
     var berhasil = 0;
     var ditolak = 0;
+    var berubah = false;
     String? galat;
+
+    void tandai(String id, String status) {
+      riwayat = riwayat
+          .map((r) => r.id == id && r.status != status
+              ? r.copyWith(status: status)
+              : r)
+          .toList();
+      berubah = true;
+    }
+
     for (final t in antri) {
       try {
         await _sync.push(serverUrl, t);
         berhasil++;
-        riwayat = riwayat
-            .map((r) => r.id == t.id ? r.copyWith(status: statusTerkirim) : r)
-            .toList();
+        tandai(t.id, statusTerkirim);
       } on Object catch (e) {
         if (ditolakPermanen(e)) {
           // Server menolak isi tiket ini. Lewati saja — kalau dihentikan
           // (`break`), satu record cacat memblokir SELURUH antrian di
           // belakangnya sampai app di-update.
-          //
-          // Tiketnya tetap berstatus antri, jadi begitu skema server
-          // diperbaiki ia ikut terunggah sendiri tanpa campur tangan.
-          //
-          // ponytail: tidak menambah status "Ditolak" tersendiri — jumlahnya
-          // cukup dilaporkan di toast. Tambahkan status kalau ternyata sering
-          // terjadi dan petugas perlu melihat tiket mana yang bermasalah.
           ditolak++;
+          tandai(t.id, statusDitolak);
           continue;
         }
         // Jaringan mati, server down, auth ditolak, kena rate limit — semuanya
@@ -476,11 +487,9 @@ class AppState extends ChangeNotifier {
         break;
       }
     }
-    if (berhasil > 0) ubah(() {}, simpan: true);
-    if (diam) {
-      if (berhasil > 0) notifyListeners();
-      return;
-    }
+    if (berubah) ubah(() {}, simpan: true);
+    if (diam) return;
+
     tampilToast(switch ((galat, ditolak)) {
       (final g?, _) => 'Gagal unggah: $g',
       (_, > 0) => '$berhasil terunggah · $ditolak ditolak server',

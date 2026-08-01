@@ -38,7 +38,7 @@ class _StoreHampa extends Store {
 
 /// Sync palsu: melempar galat yang sudah ditentukan untuk id tertentu.
 class _SyncPalsu extends Sync {
-  final Map<String, Object> galat;
+  final Map<String, Object> galat; // id -> galat yang dilempar
   final terkirim = <String>[];
   _SyncPalsu(this.galat);
 
@@ -204,9 +204,29 @@ void main() {
       // 'c' ada DI BELAKANG record cacat — dulu ini tidak pernah terkirim.
       expect(s.terkirim, ['a', 'c']);
       expect(app.riwayat.singleWhere((t) => t.id == 'c').status, statusTerkirim);
-      // Yang ditolak tetap antri supaya ikut terkirim bila server diperbaiki.
-      expect(app.riwayat.singleWhere((t) => t.id == 'b').status, statusAntri);
+      // Ditandai supaya petugas tahu tiket mana yang bermasalah.
+      expect(app.riwayat.singleWhere((t) => t.id == 'b').status, statusDitolak);
+      // Tetap dihitung belum terkirim — masih hanya ada di HP ini.
       expect(app.queue, 1);
+      expect(app.jumlahDitolak, 1);
+    });
+
+    test('tiket Ditolak tetap dicoba lagi dan bisa pulih', () async {
+      final s = _SyncPalsu({'a': ClientException(statusCode: 400)});
+      final app = buat(s, [_antri('a')]);
+
+      await app.unggahAntrian(diam: true);
+      expect(app.riwayat.single.status, statusDitolak);
+
+      // Admin memperbaiki skema server → sinkronisasi berikutnya harus
+      // mengambil tiket itu lagi, bukan menganggapnya jalan buntu.
+      s.galat.clear();
+      await app.unggahAntrian(diam: true);
+
+      expect(s.terkirim, ['a']);
+      expect(app.riwayat.single.status, statusTerkirim);
+      expect(app.queue, 0);
+      expect(app.jumlahDitolak, 0);
     });
 
     test('galat jaringan tetap menghentikan antrian', () async {

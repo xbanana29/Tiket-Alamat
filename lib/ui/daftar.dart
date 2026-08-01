@@ -114,6 +114,35 @@ class _Panah extends StatelessWidget {
   }
 }
 
+/// Chip status tiket: abu-abu terkirim, kuning antri, merah ditolak server.
+class _ChipStatus extends StatelessWidget {
+  final String status;
+  final double f;
+  const _ChipStatus({required this.status, required this.f});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bgWarna, fgWarna) = switch (status) {
+      statusTerkirim => (badgeOkBg, badgeOkFg),
+      statusDitolak => (badgeTolakBg, badgeTolakFg),
+      _ => (badgeAntriBg, badgeAntriFg),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      color: bgWarna,
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          fontSize: f * .66,
+          fontWeight: FontWeight.w700,
+          letterSpacing: f * .66 * .06,
+          color: fgWarna,
+        ),
+      ),
+    );
+  }
+}
+
 class _Kosong extends StatelessWidget {
   const _Kosong();
   @override
@@ -196,26 +225,7 @@ class _ListTiket extends StatelessWidget {
               const SizedBox(height: 7),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    color: r.status == statusTerkirim
-                        ? badgeOkBg
-                        : badgeAntriBg,
-                    child: Text(
-                      r.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: f * .66,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: f * .66 * .06,
-                        color: r.status == statusTerkirim
-                            ? badgeOkFg
-                            : badgeAntriFg,
-                      ),
-                    ),
-                  ),
+                  _ChipStatus(status: r.status, f: f),
                   const SizedBox(width: 8),
                   Text(r.petugas,
                       style: TextStyle(fontSize: f * .68, color: neutral600)),
