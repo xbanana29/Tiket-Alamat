@@ -13,6 +13,40 @@ flutter run -d <device-id>
 
 Perangkat harus dalam keadaan tidak terkunci.
 
+## Unduhan & rilis
+
+Build otomatis lewat GitHub Actions (`.github/workflows/release.yml`):
+
+| Platform | Berkas |
+|---|---|
+| Android | `TiketAlamat-android.apk` |
+| Linux x64 | `TiketAlamat-linux-x64.tar.gz` |
+| Windows x64 | `TiketAlamat-windows-x64.zip` |
+
+Membuat rilis:
+
+```
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Tag `v*` → analyze + test → build ketiga platform → Release otomatis dibuat.
+Untuk sekadar mencoba build tanpa membuat tag, jalankan workflow lewat tombol
+**Run workflow**; artefaknya bisa diunduh dari halaman run.
+
+### Yang perlu diketahui soal build
+
+- **Android belum ditandatangani kunci rilis.** Tanpa keystore, Flutter memakai
+  kunci debug — cukup untuk sideload internal, **tidak** untuk Play Store.
+  Untuk rilis resmi: buat keystore, simpan sebagai GitHub Secret, tambahkan
+  `signingConfigs.release` di `android/app/build.gradle.kts`.
+- **Desktop hanya untuk melihat/mengelola data, bukan mencetak.**
+  `print_bluetooth_thermal` mendukung Android/iOS/macOS/Windows saja, dan
+  `permission_handler` tidak punya implementasi Linux. Di Linux tombol printer
+  akan memunculkan error, bukan mencetak. Cetak thermal yang teruji hanya di
+  Android (RPP02N).
+- Tata letaknya dirancang untuk layar ponsel potret; di desktop jendelanya
+  hanya melebar, belum ditata ulang.
+
 ## Struktur
 
 | File | Isi |

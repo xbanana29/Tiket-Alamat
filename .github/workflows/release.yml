@@ -1,0 +1,115 @@
+name: Build & Release
+
+# Tag v* -> build ketiga platform lalu terbitkan Release.
+# workflow_dispatch -> build saja, artefaknya bisa diunduh dari halaman run
+# (berguna untuk mencoba perubahan build tanpa membuat tag).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.38.7'
+
+jobs:
+  # Gerbang: jangan sampai rilis dibuat dari kode yang tidak lolos test.
+  periksa:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    name: Android APK
+    needs: periksa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Tanpa keystore rilis, Flutter memakai kunci debug — cukup untuk
+      # sideload internal, TIDAK untuk Play Store. Lihat README.
+      - run: flutter build apk --release
+      - run: mv build/app/outputs/flutter-apk/app-release.apk TiketAlamat-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: TiketAlamat-android.apk
+
+  linux:
+    name: Linux x64
+    needs: periksa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependensi build GTK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: Bundel
+        run: tar -czf TiketAlamat-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: TiketAlamat-linux-x64.tar.gz
+
+  windows:
+    name: Windows x64
+    needs: periksa
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Bundel
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath TiketAlamat-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: TiketAlamat-windows-x64.zip
+
+  release:
+    name: Terbitkan Release
+    needs: [android, linux, windows]
+    # workflow_dispatch berhenti di artefak; hanya tag yang jadi Release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: unduhan
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Tiket Alamat ${{ github.ref_name }}
+          generate_release_notes: true
+          files: unduhan/**/*
