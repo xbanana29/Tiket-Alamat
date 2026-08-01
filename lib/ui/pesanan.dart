@@ -318,14 +318,16 @@ class _StrukHidup extends StatelessWidget {
           if (s.items.isEmpty)
             Text('— belum ada barang —',
                 style: kecil.copyWith(color: paperMuted)),
+          // Ukuran mengikuti hasil cetak (ESC/POS 1x, tebal) supaya yang
+          // terlihat di layar sama dengan yang keluar dari printer.
           for (var i = 0; i < s.items.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 2),
               child: Tap(
                 onTap: () => s.hapusItem(i),
                 child: Text(
                   '${s.items[i].qty} SAK ${s.items[i].nama}',
-                  style: heading(f * .78 * 1.75, color: paperInk),
+                  style: kecil.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -546,10 +548,14 @@ class KertasStruk extends StatelessWidget {
               ],
             )
           else
+            // Sak dicetak 1x, jadi pratinjaunya juga seukuran teks biasa.
             for (final b in tiket.barisTeks)
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(b, style: heading(f * .76 * 1.75, color: paperInk)),
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  b,
+                  style: kecil.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
           const _Putus(),
           Row(

@@ -1,8 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 import '../brand.dart';
 import '../models.dart';
 import '../printer.dart';
+import '../printer_desktop.dart';
 import '../state.dart';
 import '../theme.dart';
 import 'widgets.dart';
@@ -484,7 +487,11 @@ class _BlokPrinterState extends State<_BlokPrinter> {
                       ),
                     ),
                     Text(
-                      adaPrinter ? 'Bluetooth · ${s.printerMac}' : 'Ketuk Pindai perangkat',
+                      adaPrinter
+                          ? (PrinterDesktop.didukung
+                              ? 'USB · antrean sistem'
+                              : 'Bluetooth · ${s.printerMac}')
+                          : 'Ketuk ${PrinterDesktop.didukung ? "Cari printer" : "Pindai perangkat"}',
                       style: TextStyle(
                         fontSize: f * .7,
                         color: neutral600,
@@ -512,8 +519,12 @@ class _BlokPrinterState extends State<_BlokPrinter> {
         ),
         const SizedBox(height: 10),
         Text(
-          'Pasangkan printer lewat Setelan → Bluetooth, lalu pilih di sini. '
-          'Koneksi dibuka otomatis saat mencetak.',
+          PrinterDesktop.didukung
+              ? 'Printer USB dibaca dari antrean sistem '
+                  '(${Platform.isLinux ? "CUPS" : "Windows"}). Pasang printernya '
+                  'di setelan sistem dulu, lalu pilih di sini.'
+              : 'Pasangkan printer lewat Setelan → Bluetooth, lalu pilih di sini. '
+                  'Koneksi dibuka otomatis saat mencetak.',
           style: TextStyle(fontSize: f * .74, color: neutral700, height: 1.5),
         ),
         const SizedBox(height: 10),
@@ -521,7 +532,11 @@ class _BlokPrinterState extends State<_BlokPrinter> {
           children: [
             Expanded(
               child: TombolAksi(
-                _sibuk ? 'Tunggu…' : 'Pindai perangkat',
+                _sibuk
+                    ? 'Tunggu…'
+                    : (PrinterDesktop.didukung
+                        ? 'Cari printer'
+                        : 'Pindai perangkat'),
                 onTap: () => _pindai(s),
                 warna: neutral200,
                 teks: ink,

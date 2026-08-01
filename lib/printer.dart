@@ -1,9 +1,12 @@
+import 'dart:io' show Platform;
+
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import 'brand.dart';
 import 'models.dart';
+import 'printer_desktop.dart';
 
 class PrinterError implements Exception {
   final String pesan;
@@ -48,7 +51,19 @@ class Printer {
     }
   }
 
+  /// Di desktop nama antrean sistem yang dipakai, bukan MAC Bluetooth.
   Future<List<Perangkat>> daftarPerangkat() async {
+    if (PrinterDesktop.didukung) {
+      final antrean = await PrinterDesktop.daftar();
+      if (antrean.isEmpty) {
+        throw PrinterError(
+          Platform.isLinux
+              ? 'Tidak ada antrean printer di CUPS. Tambahkan printer dulu di setelan sistem.'
+              : 'Tidak ada printer terpasang di Windows.',
+        );
+      }
+      return antrean.map((n) => Perangkat(n, n)).toList();
+    }
     await mintaIzin();
     if (!await PrintBluetoothThermal.bluetoothEnabled) {
       throw PrinterError('Bluetooth mati. Nyalakan dulu.');
@@ -141,14 +156,27 @@ class Printer {
     if (mac == null || mac.isEmpty) {
       throw PrinterError('Printer belum dipilih. Buka Pengaturan → Printer.');
     }
-    await hubungkan(mac);
     final bytes = await bangunStruk(
       tiket: tiket,
       lebarMm: lebarMm,
       copies: copies,
       paperFeed: paperFeed,
     );
-    await _tulisBytes(bytes, mac);
+    await _salurkan(mac, bytes);
+  }
+
+  /// Satu pintu keluar untuk byte ESC/POS: USB di desktop, Bluetooth di ponsel.
+  Future<void> _salurkan(String tujuan, List<int> bytes) async {
+    if (PrinterDesktop.didukung) {
+      try {
+        await PrinterDesktop.kirim(tujuan, bytes);
+      } on CetakGagal catch (e) {
+        throw PrinterError(e.pesan);
+      }
+      return;
+    }
+    await hubungkan(tujuan);
+    await _tulisBytes(bytes, tujuan);
   }
 
   Future<void> tesCetak({
@@ -159,7 +187,6 @@ class Printer {
     if (mac == null || mac.isEmpty) {
       throw PrinterError('Printer belum dipilih.');
     }
-    await hubungkan(mac);
     final g = Generator(
       lebarMm == 80 ? PaperSize.mm80 : PaperSize.mm58,
       await _profil(),
@@ -180,7 +207,7 @@ class Printer {
       ...g.hr(),
       ..._feedLaluPotong(g, paperFeed),
     ];
-    await _tulisBytes(bytes, mac);
+    await _salurkan(mac, bytes);
   }
 
   Future<CapabilityProfile> _profil() async =>
@@ -257,13 +284,15 @@ class Printer {
         ),
       ));
     } else {
+      // Sak dicetak ukuran normal (1x): daftar merek bisa panjang, dan pada
+      // 2x nama merek panjang terpotong ke baris berikutnya.
       for (final baris in t.barisTeks) {
         b.addAll(g.text(
           baris,
           styles: const PosStyles(
             bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
+            height: PosTextSize.size1,
+            width: PosTextSize.size1,
           ),
         ));
       }
