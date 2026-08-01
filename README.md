@@ -44,11 +44,11 @@ diulang lewat **Daftar → Cetak ulang**.
 Tiket disimpan lokal dengan status `Menunggu unggah`, lalu di-push ke server dan
 berubah menjadi `Terkirim`. Antrian dicoba ulang otomatis saat internet kembali.
 
-> **Server belum live.** Domain target: `https://pb.rejekiamerta.com`.  
-> Panduan setup lengkap untuk AI/dev: **[POCKETBASE.md](./POCKETBASE.md)**.
+> **Server live** di `https://pb.rejekiamerta.com` (sejak 2026-08-01).  
+> Kredensial admin, detail VPS, dan backup: **[POCKETBASE.md](./POCKETBASE.md)**.
 
-1. Import `pb_schema.json` di Admin UI PocketBase (Settings → Import collections).
-2. Isi URL server di **Pengaturan → Server & antrian** (default `https://pb.rejekiamerta.com`).
+Koleksi `tiket` sudah terimport. Di HP cukup pastikan URL di **Pengaturan →
+Server & antrian** = `https://pb.rejekiamerta.com` (sudah jadi default di kode).
 
 Uji dengan PocketBase lokal:
 

@@ -1,11 +1,55 @@
-# PocketBase — handoff untuk AI / setup nanti
+# PocketBase — handoff + dokumentasi server
 
-> **Status (2026-08):** server **belum dibuat**. App sudah siap sync offline-first; tiket mengantre status `Menunggu unggah` sampai endpoint hidup.
+> **Status (2026-08-01): server SUDAH LIVE** di `https://pb.rejekiamerta.com`.
+> Koleksi `tiket` terimport, HTTPS aktif, backup harian jalan.
+> Detail akses: [Server terpasang](#server-terpasang).
 >
-> **Domain target:** `https://pb.rejekiamerta.com`  
-> (bukan `pb.gudang.id` — itu placeholder lama.)
+> Bagian "Langkah setup" di bawah disimpan sebagai catatan **cara** server ini
+> didirikan (berguna kalau pindah VPS), bukan pekerjaan yang masih tertunda.
 
-Dokumen ini untuk AI/dev yang akan **mendirikan** PocketBase. Jangan asumsikan server sudah ada.
+---
+
+## Server terpasang
+
+| | |
+|---|---|
+| API | `https://pb.rejekiamerta.com` — sama dengan default `lib/state.dart`, app tidak perlu diubah |
+| Admin UI | `https://pb.rejekiamerta.com/_/` |
+| Admin email | `nikokevin29@gmail.com` |
+| Admin password | `2lVWgucumQ4mW1R2VRUV` |
+| Versi | PocketBase 0.39.10 |
+| Host | VPS `204.168.237.146`, container Docker `pocketbase`, bind `127.0.0.1:8090` |
+| Compose | `/root/pocketbase/docker-compose.yml` (+ runbook di `/root/pocketbase/README.md`) |
+| Data | `/root/pocketbase/pb_data` |
+| Reverse proxy | nginx-proxy-manager (`npm-app-1`) → `pocketbase:8090` lewat network `npm_default` |
+| TLS | Let's Encrypt ECDSA, auto-renew oleh NPM |
+| DNS | Cloudflare A `pb.rejekiamerta.com` → `204.168.237.146` (proxied) |
+| Backup | `/root/backup_pocketbase.sh`, cron harian 21:00 → `r2:vst-laravel/backups/pocketbase`, retensi 30 hari, notif Telegram |
+
+> ⚠️ Password di atas adalah **superuser produksi** dan tersimpan di riwayat git
+> selamanya. Repo ini private; begitu ada orang di luar tim yang dapat akses repo,
+> **rotasi password lewat Admin UI** dan perbarui baris ini + file
+> `/root/pocketbase/.admin-password` di VPS.
+
+### Setelan server yang tidak default
+
+- **API rules koleksi `tiket` dibiarkan terbuka** (public list/view/create/update)
+  — keputusan owner, app internal. Konsekuensi & urutan aman kalau nanti mau
+  dikunci: lihat [Kekurangan sisi klien](#kekurangan-sisi-klien-yang-berdampak-ke-server) poin 1.
+- **Rate limit hanya di endpoint login** (`_superusers:auth` 5/menit, `*:auth`
+  10/menit). Koleksi `tiket` sengaja **tanpa** rate limit — klien mengirim
+  antrian tanpa backoff (poin 3).
+- **Trusted proxy** = header `CF-Connecting-IP`, karena di belakang Cloudflare + NPM.
+
+### Verifikasi yang sudah dijalankan (2026-08-01)
+
+- create → `getFirstListItem` → update lewat domain publik: semua 200, tetap **1 record** (upsert jalan).
+- `tiket_id` duplikat ditolak 400 oleh unique index `idx_tiket_id`.
+- 120 create beruntun: semua 200 (antrian panjang tidak kena limit).
+- 7× login admin salah: 429 mulai percobaan ke-6.
+- Container di-restart: endpoint tetap sehat (`restart: always`).
+- Backup manual: 228K terunggah ke R2.
+- Seluruh record uji sudah dihapus — koleksi `tiket` kosong.
 
 ---
 
@@ -48,16 +92,17 @@ Filter lookup: `tiket_id='<id>'` lalu `update`, atau `create` bila 404.
 
 ---
 
-## Yang belum ada (tugas setup)
+## Status tugas setup
 
-- [ ] VPS / host dengan binary PocketBase
-- [ ] DNS: `pb.rejekiamerta.com` → IP VPS (A record)
-- [ ] HTTPS (Let's Encrypt + reverse proxy, atau Caddy)
-- [ ] `./pocketbase serve` (systemd recommended)
-- [ ] Import koleksi dari `pb_schema.json`
-- [ ] Admin user PocketBase dibuat
-- [ ] **API rules dikunci** sebelum production traffic
-- [ ] Smoke test: app unggah 1 tiket → status `Terkirim`
+- [x] VPS / host dengan binary PocketBase — container Docker, bukan systemd
+- [x] DNS: `pb.rejekiamerta.com` → IP VPS (A record)
+- [x] HTTPS (Let's Encrypt lewat nginx-proxy-manager)
+- [x] PocketBase serve (Docker `restart: always`)
+- [x] Import koleksi dari `pb_schema.json`
+- [x] Admin user PocketBase dibuat
+- [ ] ~~**API rules dikunci**~~ — sengaja **tidak** dikunci, keputusan owner (app internal)
+- [ ] Smoke test dari app: unggah 1 tiket dari HP → status `Terkirim`
+      (sisi server sudah diverifikasi lewat HTTP; tinggal dites dari perangkat)
 
 ---
 
@@ -312,15 +357,15 @@ tiket_gudang/
 
 ---
 
-## Checklist selesai (centang saat done)
+## Checklist selesai
 
-- [ ] `https://pb.rejekiamerta.com/_/` admin bisa login  
-- [ ] Koleksi `tiket` + index `tiket_id` ada  
-- [ ] App unggah → status **Terkirim**  
-- [ ] Edit + re-upload tidak dobel record  
-- [ ] Rules production dikunci (bukan `""` publik)  
-- [ ] Backup volume `/opt/pocketbase/pb_data` terjadwal  
+- [x] `https://pb.rejekiamerta.com/_/` admin bisa login  
+- [x] Koleksi `tiket` + index `tiket_id` ada  
+- [ ] App unggah → status **Terkirim** (belum dites dari HP)  
+- [x] Edit + re-upload tidak dobel record (diuji lewat HTTP)  
+- [ ] ~~Rules production dikunci~~ — sengaja terbuka, keputusan owner  
+- [x] Backup `pb_data` terjadwal (harian 21:00 → Cloudflare R2, retensi 30 hari)  
 
 ---
 
-*Handoff: server OTW. Domain tetap `pb.rejekiamerta.com` kecuali product owner ganti.*
+*Server live sejak 2026-08-01 di `pb.rejekiamerta.com`.*
