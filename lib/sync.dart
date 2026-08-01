@@ -77,6 +77,56 @@ class Sync {
     );
   }
 
+  // ---------------- merek ----------------
+
+  /// Ambil seluruh daftar merek dari server, termasuk yang berstatus dihapus.
+  ///
+  /// Yang dihapus tetap ikut ditarik: tanpa penanda itu, perangkat yang masih
+  /// menyimpan merek lama akan mengirimkannya kembali dan penghapusan batal
+  /// dengan sendirinya.
+  Future<List<Merek>> tarikMerek(String url) async {
+    if (url.trim().isEmpty) throw Exception('URL server kosong');
+    final rekaman = await _client(url).collection('merek').getFullList();
+    return rekaman.map((r) {
+      final d = r.toJson();
+      return Merek(
+        d['nama'] as String,
+        d['kategori'] as String,
+        dihapus: d['dihapus'] as bool? ?? false,
+        diubah: _waktuServer(d['diubah']),
+      );
+    }).toList();
+  }
+
+  /// Simpan satu merek (buat bila belum ada, perbarui bila sudah).
+  Future<void> pushMerek(String url, Merek m) async {
+    if (url.trim().isEmpty) throw Exception('URL server kosong');
+    final body = {
+      'nama': m.nama,
+      'kategori': m.kategori,
+      'dihapus': m.dihapus,
+      'diubah': m.diubah.toUtc().toIso8601String(),
+    };
+    final coll = _client(url).collection('merek');
+    try {
+      final ada = await coll.getFirstListItem('nama="${m.nama}"');
+      await coll.update(ada.id, body: body);
+    } on ClientException catch (e) {
+      if (e.statusCode == 404) {
+        await coll.create(body: body);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  static DateTime _waktuServer(Object? v) {
+    if (v is! String || v.isEmpty) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.parse(v.replaceFirst(' ', 'T')).toLocal();
+  }
+
   /// Kirim satu tiket. Melempar bila gagal — pemanggil biarkan status tetap antri.
   Future<void> push(String url, Tiket t) async {
     if (url.trim().isEmpty) throw Exception('URL server kosong');

@@ -35,10 +35,32 @@ Untuk sekadar mencoba build tanpa membuat tag, jalankan workflow lewat tombol
 
 ### Yang perlu diketahui soal build
 
-- **Android belum ditandatangani kunci rilis.** Tanpa keystore, Flutter memakai
-  kunci debug — cukup untuk sideload internal, **tidak** untuk Play Store.
-  Untuk rilis resmi: buat keystore, simpan sebagai GitHub Secret, tambahkan
-  `signingConfigs.release` di `android/app/build.gradle.kts`.
+- **Kunci penandatanganan Android wajib disiapkan.** Ini bukan formalitas Play
+  Store: tanpa kunci tetap, tiap build CI memakai kunci debug baru dan APK
+  versi berikutnya **ditolak memasang** di atas versi sebelumnya
+  (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) — tombol pembaruan jadi percuma.
+
+  Sekali saja, di komputer Anda:
+
+  ```bash
+  keytool -genkey -v -keystore rilis.jks -keyalg RSA -keysize 2048 \
+      -validity 10000 -alias tiketalamat
+  base64 -w0 rilis.jks > rilis.jks.b64     # macOS: base64 -i rilis.jks -o rilis.jks.b64
+  ```
+
+  Lalu simpan sebagai GitHub Secrets (**Settings → Secrets and variables →
+  Actions**):
+
+  | Secret | Isi |
+  |---|---|
+  | `ANDROID_KEYSTORE_BASE64` | isi `rilis.jks.b64` |
+  | `ANDROID_STORE_PASSWORD` | password keystore |
+  | `ANDROID_KEY_ALIAS` | `tiketalamat` |
+  | `ANDROID_KEY_PASSWORD` | password key |
+
+  **Simpan `rilis.jks` baik-baik.** Kalau hilang, semua HP harus uninstall
+  dulu sebelum bisa dipasangi versi berikutnya. Berkas ini tidak boleh masuk
+  git (sudah ada di `.gitignore`).
 - **Desktop hanya untuk melihat/mengelola data, bukan mencetak.**
   `print_bluetooth_thermal` mendukung Android/iOS/macOS/Windows saja, dan
   `permission_handler` tidak punya implementasi Linux. Di Linux tombol printer
@@ -83,6 +105,19 @@ berubah menjadi `Terkirim`. Antrian dicoba ulang otomatis saat internet kembali.
 
 Koleksi `tiket` sudah terimport. Di HP cukup pastikan URL di **Pengaturan →
 Server & antrian** = `https://pb.rejekiamerta.com` (sudah jadi default di kode).
+
+### Merek & kategori ikut tersinkron
+
+Daftar merek juga dipakai bersama: menambah, mengubah, atau menghapus merek di
+satu HP ikut berlaku di HP lain. Ditarik saat app dibuka dan saat tab
+**Pengaturan** dibuka.
+
+Penghapusan memakai **hapus lunak** — barisnya tetap tersimpan dengan penanda
+`dihapus`. Tanpa itu, HP lain yang masih menyimpan merek lama akan
+mengirimkannya kembali dan penghapusan batal dengan sendirinya. Kalau dua HP
+mengubah merek yang sama, perubahan dengan waktu paling baru yang menang.
+
+> Butuh koleksi `merek` di PocketBase — import dari `pb_schema.json`.
 
 ### Tiket muncul di semua HP
 

@@ -1,9 +1,12 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../brand.dart';
 import '../models.dart';
+import '../pembaruan.dart';
 import '../printer.dart';
 import '../printer_desktop.dart';
 import '../state.dart';
@@ -77,7 +80,7 @@ class _UtamaState extends State<_Utama> {
                               fontWeight: FontWeight.w700,
                             )),
                         Text(
-                          '${s.brands.length} merek · tambah, ubah, hapus',
+                          '${s.merekAktif.length} merek · tambah, ubah, hapus',
                           style: TextStyle(
                             fontSize: f * .7,
                             color: neutral600,
@@ -224,6 +227,7 @@ class _UtamaState extends State<_Utama> {
           ],
         ),
         const _BlokPrinter(),
+        const _BlokPembaruan(),
         _Blok(
           children: [
             const LabelMikro('Server & antrian'),
@@ -319,6 +323,176 @@ class _UtamaState extends State<_Utama> {
 }
 
 /// Printer: pilih perangkat yang sudah di-pair, tes cetak.
+/// Versi terpasang + cek rilis terbaru di GitHub.
+class _BlokPembaruan extends StatefulWidget {
+  const _BlokPembaruan();
+  @override
+  State<_BlokPembaruan> createState() => _BlokPembaruanState();
+}
+
+class _BlokPembaruanState extends State<_BlokPembaruan> {
+  String? _versi;
+  Rilis? _rilis;
+  bool _sibuk = false;
+  String? _galat;
+
+  @override
+  void initState() {
+    super.initState();
+    // Versi dibaca dari paket terpasang, bukan konstanta yang bisa lupa
+    // dinaikkan saat rilis.
+    PackageInfo.fromPlatform().then((p) {
+      if (mounted) setState(() => _versi = p.version);
+    });
+  }
+
+  Future<void> _cek() async {
+    if (_sibuk) return;
+    setState(() {
+      _sibuk = true;
+      _galat = null;
+    });
+    try {
+      final r = await cekRilisTerbaru();
+      if (mounted) setState(() => _rilis = r);
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() => _galat = e is PembaruanGagal ? e.pesan : '$e');
+      }
+    } finally {
+      if (mounted) setState(() => _sibuk = false);
+    }
+  }
+
+  Future<void> _buka(String url) async {
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      AppScope.of(context).tampilToast('Tidak bisa membuka $url');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = fs(context);
+    final sekarang = _versi;
+    final r = _rilis;
+    final baru = sekarang != null && r != null && adaVersiBaru(sekarang, r.versi);
+
+    return _Blok(
+      children: [
+        const LabelMikro('Versi aplikasi'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                sekarang == null ? '…' : 'Terpasang: $sekarang',
+                style: TextStyle(fontSize: f * .88, fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (r != null && !baru)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                color: badgeOkBg,
+                child: Text(
+                  'TERBARU',
+                  style: TextStyle(
+                    fontSize: f * .66,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: f * .66 * .06,
+                    color: badgeOkFg,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_galat != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _galat!,
+            style: TextStyle(fontSize: f * .74, color: accent700, height: 1.4),
+          ),
+        ],
+        if (baru) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            color: badgeAntriBg,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'VERSI ${r.versi} TERSEDIA',
+                  style: TextStyle(
+                    fontSize: f * .68,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: f * .68 * .06,
+                    color: badgeAntriFg,
+                  ),
+                ),
+                if (r.catatan.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    // Catatan rilis bisa panjang; ambil bagian awalnya saja.
+                    r.catatan.length > 300
+                        ? '${r.catatan.substring(0, 300)}…'
+                        : r.catatan,
+                    style: TextStyle(
+                      fontSize: f * .72,
+                      height: 1.5,
+                      color: badgeAntriFg,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: TombolAksi(
+                _sibuk ? 'Memeriksa…' : 'Cek pembaruan',
+                onTap: _cek,
+                warna: baru ? null : neutral200,
+                teks: baru ? Colors.white : ink,
+              ),
+            ),
+            if (baru) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TombolAksi(
+                  Platform.isAndroid ? 'Unduh APK' : 'Buka rilis',
+                  onTap: () => _buka(
+                    Platform.isAndroid && r.unduhanApk != null
+                        ? r.unduhanApk!
+                        : kHalamanRilis,
+                  ),
+                  warna: neutral200,
+                  teks: ink,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          Platform.isAndroid
+              ? 'APK diunduh lewat browser, lalu ketuk berkasnya untuk memasang. '
+                  'Data tiket tidak terhapus saat memperbarui.'
+              : 'Membuka halaman rilis di browser.',
+          style: TextStyle(fontSize: f * .72, color: neutral600, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
 /// Tiket yang ditolak server, lintas tanggal.
 ///
 /// Chip "DITOLAK SERVER" di tab Daftar hanya terlihat pada tanggal yang sedang
@@ -574,7 +748,8 @@ class _Merek extends StatefulWidget {
 
 class _MerekState extends State<_Merek> {
   final ctl = TextEditingController();
-  int? idx;
+  /// Nama merek yang sedang diubah; null berarti sedang menambah baru.
+  String? namaEdit;
   String kategori = 'Terigu';
 
   @override
@@ -584,7 +759,7 @@ class _MerekState extends State<_Merek> {
   }
 
   void _reset() => setState(() {
-    idx = null;
+    namaEdit = null;
     ctl.clear();
     kategori = 'Terigu';
   });
@@ -625,7 +800,7 @@ class _MerekState extends State<_Merek> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LabelMikro(idx == null ? 'Tambah merek' : 'Ubah merek'),
+              LabelMikro(namaEdit == null ? 'Tambah merek' : 'Ubah merek'),
               const SizedBox(height: 10),
               Isian(controller: ctl, hint: 'Nama merek', fontSize: f * .9),
               const SizedBox(height: 10),
@@ -642,16 +817,19 @@ class _MerekState extends State<_Merek> {
                 children: [
                   Expanded(
                     child: TombolAksi(
-                      idx == null ? 'Tambah' : 'Simpan perubahan',
+                      namaEdit == null ? 'Tambah' : 'Simpan perubahan',
                       onTap: () {
-                        final sebelum = s.brands.length;
-                        s.simpanMerek(idx, ctl.text, kategori);
+                        final sebelum = s.merekAktif.length;
+                        s.simpanMerek(namaEdit, ctl.text, kategori);
                         // Reset form hanya bila simpan benar-benar terjadi.
-                        if (idx != null || s.brands.length != sebelum) _reset();
+                        if (namaEdit != null ||
+                            s.merekAktif.length != sebelum) {
+                          _reset();
+                        }
                       },
                     ),
                   ),
-                  if (idx != null) ...[
+                  if (namaEdit != null) ...[
                     const SizedBox(width: 8),
                     Expanded(
                       child: TombolAksi(
@@ -667,7 +845,7 @@ class _MerekState extends State<_Merek> {
             ],
           ),
         ),
-        for (var i = 0; i < s.brands.length; i++)
+        for (final m in s.merekAktif)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
@@ -679,28 +857,27 @@ class _MerekState extends State<_Merek> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(s.brands[i].nama,
+                      Text(m.nama,
                           style: TextStyle(
                             fontSize: f * .86,
                             fontWeight: FontWeight.w700,
                           )),
-                      Text(s.brands[i].kategori.toUpperCase(),
-                          style: micro(f * .97)),
+                      Text(m.kategori.toUpperCase(), style: micro(f * .97)),
                     ],
                   ),
                 ),
                 Tap(
                   onTap: () => setState(() {
-                    idx = i;
-                    ctl.text = s.brands[i].nama;
-                    kategori = s.brands[i].kategori;
+                    namaEdit = m.nama;
+                    ctl.text = m.nama;
+                    kategori = m.kategori;
                   }),
                   child: Text('UBAH', style: _aksi(f, ink)),
                 ),
                 const SizedBox(width: 12),
                 Tap(
                   onTap: () {
-                    s.hapusMerek(i);
+                    s.hapusMerek(m.nama);
                     _reset();
                   },
                   child: Text('HAPUS', style: _aksi(f, accent700)),

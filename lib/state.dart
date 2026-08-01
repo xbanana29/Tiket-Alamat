@@ -94,6 +94,23 @@ List<Tiket> gabungTiket(List<Tiket> lokal, List<Tiket> server) {
   return urut;
 }
 
+/// Gabungkan daftar merek dua perangkat.
+///
+/// Kuncinya `nama`. Kalau merek yang sama ada di dua tempat, yang `diubah`-nya
+/// paling baru menang — termasuk kalau yang menang itu penandaan hapus.
+/// Hasil tetap memuat baris berstatus dihapus supaya penghapusan ikut terkirim
+/// ke perangkat berikutnya; penyaringan untuk tampilan dilakukan terpisah.
+List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
+  final hasil = <String, Merek>{for (final m in lokal) m.nama: m};
+  for (final s in server) {
+    final ada = hasil[s.nama];
+    if (ada == null || s.diubah.isAfter(ada.diubah)) hasil[s.nama] = s;
+  }
+  final urut = hasil.values.toList()
+    ..sort((a, b) => a.nama.compareTo(b.nama));
+  return urut;
+}
+
 String kunciTanggal(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
@@ -166,6 +183,9 @@ class AppState extends ChangeNotifier {
   /// belum tersimpan di mana pun selain HP ini.
   int get queue => riwayat.where((t) => belumTerkirim(t.status)).length;
 
+  /// Merek yang tampil di layar — tanpa yang sudah dihapus.
+  List<Merek> get merekAktif => brands.where((m) => !m.dihapus).toList();
+
   /// Tiket yang ditolak server. Dipakai untuk peringatan di Pengaturan.
   int get jumlahDitolak =>
       riwayat.where((t) => t.status == statusDitolak).length;
@@ -219,6 +239,7 @@ class AppState extends ChangeNotifier {
     if (online) {
       unawaited(unggahAntrian(diam: true));
       unawaited(tarikTiket()); // tiket perangkat lain untuk hari ini
+      unawaited(tarikMerek()); // daftar merek bersama
     }
   }
 
@@ -440,33 +461,61 @@ class AppState extends ChangeNotifier {
 
   // ---------- merek ----------
 
-  void simpanMerek(int? idx, String nama, String kategori) {
+  /// Simpan merek. [namaLama] null berarti tambah baru.
+  ///
+  /// Memakai nama, bukan indeks: `brands` menyimpan juga baris yang sudah
+  /// dihapus (agar penghapusan ikut tersinkron), jadi indeks daftar di layar
+  /// tidak sama dengan indeks di sini.
+  void simpanMerek(String? namaLama, String nama, String kategori) {
     final n = nama.trim().toUpperCase();
     if (n.isEmpty) {
       tampilToast('Nama merek kosong');
       return;
     }
-    final bentrok = brands.indexWhere((b) => b.nama == n);
-    if (bentrok >= 0 && bentrok != idx) {
+    final bentrok = brands.any((b) => b.nama == n && !b.dihapus && b.nama != namaLama);
+    if (bentrok) {
       tampilToast('$n sudah ada');
       return;
     }
+    final sekarang = DateTime.now();
     ubah(() {
       final l = List.of(brands);
-      if (idx == null) {
-        l.add(Merek(n, kategori));
+      // Ganti nama = hapus yang lama (tersinkron) lalu buat yang baru.
+      if (namaLama != null && namaLama != n) {
+        _tandai(l, namaLama, dihapus: true, waktu: sekarang);
+      }
+      final i = l.indexWhere((b) => b.nama == n);
+      final baru = Merek(n, kategori, diubah: sekarang);
+      if (i >= 0) {
+        l[i] = baru; // termasuk menghidupkan lagi merek yang pernah dihapus
       } else {
-        l[idx] = Merek(n, kategori);
+        l.add(baru);
       }
       brands = l;
     }, simpan: true);
-    tampilToast(idx == null ? '$n ditambahkan' : '$n disimpan');
+    tampilToast(namaLama == null ? '$n ditambahkan' : '$n disimpan');
+    unawaited(dorongMerek());
   }
 
-  void hapusMerek(int idx) {
-    final n = brands[idx].nama;
-    ubah(() => brands = List.of(brands)..removeAt(idx), simpan: true);
-    tampilToast('$n dihapus');
+  /// Hapus lunak — barisnya tetap ada supaya perangkat lain ikut menghapusnya.
+  void hapusMerek(String nama) {
+    ubah(() {
+      final l = List.of(brands);
+      _tandai(l, nama, dihapus: true, waktu: DateTime.now());
+      brands = l;
+    }, simpan: true);
+    tampilToast('$nama dihapus');
+    unawaited(dorongMerek());
+  }
+
+  static void _tandai(
+    List<Merek> l,
+    String nama, {
+    required bool dihapus,
+    required DateTime waktu,
+  }) {
+    final i = l.indexWhere((b) => b.nama == nama);
+    if (i >= 0) l[i] = l[i].copyWith(dihapus: dihapus, diubah: waktu);
   }
 
   // ---------- sync ----------
@@ -475,6 +524,7 @@ class AppState extends ChangeNotifier {
   void bukaTab(String t) {
     ubah(() => tab = t);
     if (t == 'daftar') unawaited(tarikTiket());
+    if (t == 'atur') unawaited(tarikMerek());
   }
 
   /// Geser tanggal yang dilihat di Daftar; [hari] null berarti kembali hari ini.
@@ -483,6 +533,37 @@ class AppState extends ChangeNotifier {
         ? DateTime.now()
         : tanggal.add(Duration(days: hari)));
     unawaited(tarikTiket());
+  }
+
+  /// Kirim seluruh merek lokal ke server, lalu tarik balik hasil gabungannya.
+  ///
+  /// Daftarnya puluhan baris, bukan ribuan — mengirim semuanya jauh lebih
+  /// sederhana daripada melacak baris mana yang kotor.
+  ///
+  /// ponytail: pindah ke penanda "belum terkirim" per baris kalau daftar merek
+  /// sudah ratusan dan pengiriman terasa lambat.
+  Future<void> dorongMerek({bool diam = true}) async {
+    if (!online) return;
+    try {
+      for (final m in brands) {
+        await _sync.pushMerek(serverUrl, m);
+      }
+      await tarikMerek(diam: true);
+    } on Object catch (e) {
+      if (!diam) tampilToast('Gagal kirim merek: $e');
+    }
+  }
+
+  Future<void> tarikMerek({bool diam = true}) async {
+    if (!online) return;
+    try {
+      final dariServer = await _sync.tarikMerek(serverUrl);
+      if (dariServer.isEmpty) return;
+      final gabungan = gabungMerek(brands, dariServer);
+      ubah(() => brands = gabungan, simpan: true);
+    } on Object catch (e) {
+      if (!diam) tampilToast('Gagal ambil merek: $e');
+    }
   }
 
   bool _sedangTarik = false;

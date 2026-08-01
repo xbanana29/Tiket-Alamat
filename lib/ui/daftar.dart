@@ -406,7 +406,7 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final b in s.brands)
+                  for (final b in s.merekAktif)
                     Tap(
                       onTap: () => _tambah(b.nama),
                       child: Container(

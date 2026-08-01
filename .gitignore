@@ -46,3 +46,8 @@ app.*.map.json
 
 # Gradle build artifacts (Flutter template hanya meng-ignore /build di root)
 /android/build/
+
+# Kunci penandatanganan Android — JANGAN pernah masuk git
+android/key.properties
+android/*.jks
+android/*.keystore

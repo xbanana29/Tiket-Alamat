@@ -201,7 +201,7 @@ class _Sak extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 1 / .72,
                 children: [
-                  for (final b in s.brands)
+                  for (final b in s.merekAktif)
                     _TileMerek(merek: b, qty: s.qtyOf(b.nama)),
                 ],
               ),

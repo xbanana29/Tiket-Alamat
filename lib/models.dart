@@ -128,17 +128,53 @@ class Tiket {
 }
 
 class Merek {
-  final String nama;
+  final String nama; // sekaligus kunci identitas antar-perangkat
   final String kategori; // 'Terigu' | 'Gula'
-  const Merek(this.nama, this.kategori);
 
-  Map<String, dynamic> toJson() => {'nama': nama, 'kategori': kategori};
-  factory Merek.fromJson(Map<String, dynamic> j) =>
-      Merek(j['nama'] as String, j['kategori'] as String);
+  /// Hapus lunak. Kalau merek benar-benar dibuang dari daftar, perangkat lain
+  /// akan mengirimkannya kembali pada sinkronisasi berikutnya — penghapusan
+  /// harus ikut tersinkron, bukan sekadar hilang secara lokal.
+  final bool dihapus;
+
+  /// Kapan baris ini terakhir diubah. Dipakai sebagai penentu saat dua
+  /// perangkat mengubah merek yang sama: yang paling baru menang.
+  final DateTime diubah;
+
+  Merek(
+    this.nama,
+    this.kategori, {
+    this.dihapus = false,
+    DateTime? diubah,
+  }) : diubah = diubah ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+  Merek copyWith({String? kategori, bool? dihapus, DateTime? diubah}) => Merek(
+    nama,
+    kategori ?? this.kategori,
+    dihapus: dihapus ?? this.dihapus,
+    diubah: diubah ?? this.diubah,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'nama': nama,
+    'kategori': kategori,
+    'dihapus': dihapus,
+    'diubah': diubah.toIso8601String(),
+  };
+
+  factory Merek.fromJson(Map<String, dynamic> j) => Merek(
+    j['nama'] as String,
+    j['kategori'] as String,
+    dihapus: j['dihapus'] as bool? ?? false,
+    // Data lama tidak punya `diubah`; anggap paling tua supaya kalah dari
+    // versi mana pun yang datang dari server.
+    diubah: j['diubah'] == null
+        ? DateTime.fromMillisecondsSinceEpoch(0)
+        : DateTime.parse(j['diubah'] as String),
+  );
 }
 
 /// Seed merek dari rancangan, dipakai saat pertama kali app dijalankan.
-const seedMerek = <Merek>[
+final seedMerek = <Merek>[
   Merek('CAKRA KEMBAR', 'Terigu'),
   Merek('SEGITIGA BIRU', 'Terigu'),
   Merek('KUNCI BIRU', 'Terigu'),

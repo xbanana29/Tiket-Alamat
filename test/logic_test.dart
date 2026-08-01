@@ -308,6 +308,60 @@ void main() {
     });
   });
 
+  group('gabungMerek', () {
+    final lama = DateTime(2026, 8, 1, 10);
+    final baru = DateTime(2026, 8, 1, 12);
+
+    test('merek perangkat lain ditambahkan', () {
+      final h = gabungMerek(
+        [Merek('A', 'Terigu', diubah: lama)],
+        [Merek('B', 'Gula', diubah: lama)],
+      );
+      expect(h.map((e) => e.nama), ['A', 'B']);
+    });
+
+    test('perubahan paling baru yang menang', () {
+      final h = gabungMerek(
+        [Merek('A', 'Terigu', diubah: lama)],
+        [Merek('A', 'Gula', diubah: baru)],
+      );
+      expect(h.single.kategori, 'Gula');
+    });
+
+    test('perubahan lama dari server tidak menimpa yang baru di lokal', () {
+      final h = gabungMerek(
+        [Merek('A', 'Gula', diubah: baru)],
+        [Merek('A', 'Terigu', diubah: lama)],
+      );
+      expect(h.single.kategori, 'Gula');
+    });
+
+    test('penghapusan ikut tersinkron, bukan dihidupkan lagi', () {
+      // Perangkat lain menghapus; perangkat ini masih menyimpannya.
+      final h = gabungMerek(
+        [Merek('A', 'Terigu', diubah: lama)],
+        [Merek('A', 'Terigu', dihapus: true, diubah: baru)],
+      );
+      expect(h.single.dihapus, isTrue);
+    });
+
+    test('merek dihapus tetap ada di daftar agar bisa diteruskan', () {
+      final h = gabungMerek(
+        [Merek('A', 'Terigu', dihapus: true, diubah: baru)],
+        const [],
+      );
+      expect(h.length, 1);
+    });
+
+    test('menambah ulang nama yang pernah dihapus menghidupkannya', () {
+      final h = gabungMerek(
+        [Merek('A', 'Terigu', diubah: baru)], // ditambah lagi di sini
+        [Merek('A', 'Terigu', dihapus: true, diubah: lama)],
+      );
+      expect(h.single.dihapus, isFalse);
+    });
+  });
+
   group('persistensi', () {
     test('tiket bolak-balik lewat JSON tanpa kehilangan data', () {
       final t = _tiket(

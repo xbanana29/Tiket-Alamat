@@ -20,5 +20,23 @@
       { "name": "jerigen", "type": "number", "min": 0, "max": 99 },
       { "name": "revisi", "type": "json", "maxSize": 50000 }
     ]
+  },
+  {
+    "name": "merek",
+    "type": "base",
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": null,
+    "indexes": [
+      "CREATE UNIQUE INDEX `idx_merek_nama` ON `merek` (`nama`)"
+    ],
+    "fields": [
+      { "name": "nama", "type": "text", "required": true },
+      { "name": "kategori", "type": "select", "required": true, "maxSelect": 1, "values": ["Terigu", "Gula"] },
+      { "name": "dihapus", "type": "bool" },
+      { "name": "diubah", "type": "date", "required": true }
+    ]
   }
 ]
