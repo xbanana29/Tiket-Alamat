@@ -88,7 +88,13 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
+      - name: Build
+        # permission_handler_windows masih memakai <experimental/coroutine>;
+        # MSVC baru menolaknya sebagai error. Macro ini yang disarankan pesan
+        # errornya sendiri. Hapus begitu plugin itu pindah ke <coroutine> C++20.
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+        run: flutter build windows --release
       - name: Bundel
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath TiketAlamat-windows-x64.zip
       - uses: actions/upload-artifact@v4
