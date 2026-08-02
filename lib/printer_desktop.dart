@@ -19,31 +19,38 @@ import 'package:ffi/ffi.dart';
 /// lintas platform. Tidak ada dependensi baru selain `ffi` yang memang sudah
 /// ikut terpasang.
 class PrinterDesktop {
-  static bool get didukung => Platform.isLinux || Platform.isWindows;
+  /// macOS ikut jalur CUPS: `permission_handler` tidak punya implementasi
+  /// macOS, jadi jalur Bluetooth akan melempar MissingPluginException di sana.
+  /// CUPS sendiri sudah bawaan macOS.
+  static bool get _cups => Platform.isLinux || Platform.isMacOS;
+
+  static bool get didukung => _cups || Platform.isWindows;
 
   /// Nama antrean printer yang terpasang di sistem.
   static Future<List<String>> daftar() async {
-    if (Platform.isLinux) return _daftarLinux();
+    if (_cups) return _daftarCups();
     if (Platform.isWindows) return _daftarWindows();
     return const [];
   }
 
   static Future<void> kirim(String antrean, List<int> bytes) async {
-    if (Platform.isLinux) return _kirimLinux(antrean, bytes);
+    if (_cups) return _kirimCups(antrean, bytes);
     if (Platform.isWindows) return _kirimWindows(antrean, bytes);
-    throw const CetakGagal('Cetak USB hanya tersedia di Linux dan Windows.');
+    throw const CetakGagal(
+      'Cetak USB hanya tersedia di Linux, macOS, dan Windows.',
+    );
   }
 
-  // ---------------- Linux / CUPS ----------------
+  // ---------------- Linux & macOS / CUPS ----------------
 
-  static Future<List<String>> _daftarLinux() async {
+  static Future<List<String>> _daftarCups() async {
     final ProcessResult r;
     try {
       // `lpstat -a` mencetak satu baris per antrean yang menerima pekerjaan.
       r = await Process.run('lpstat', ['-a']);
     } on ProcessException {
       throw const CetakGagal(
-        'Perintah `lpstat` tidak ada. Pasang CUPS: sudo apt install cups-client',
+        'Perintah `lpstat` tidak ada. Di Linux pasang: sudo apt install cups-client',
       );
     }
     if (r.exitCode != 0) return const [];
@@ -53,13 +60,13 @@ class PrinterDesktop {
         .toList();
   }
 
-  static Future<void> _kirimLinux(String antrean, List<int> bytes) async {
+  static Future<void> _kirimCups(String antrean, List<int> bytes) async {
     final Process p;
     try {
       p = await Process.start('lp', ['-d', antrean, '-o', 'raw', '-']);
     } on ProcessException {
       throw const CetakGagal(
-        'Perintah `lp` tidak ada. Pasang CUPS: sudo apt install cups-client',
+        'Perintah `lp` tidak ada. Di Linux pasang: sudo apt install cups-client',
       );
     }
     p.stdin.add(bytes);

@@ -17,11 +17,24 @@ Perangkat harus dalam keadaan tidak terkunci.
 
 Build otomatis lewat GitHub Actions (`.github/workflows/release.yml`):
 
-| Platform | Berkas |
-|---|---|
-| Android | `TiketAlamat-android.apk` |
-| Linux x64 | `TiketAlamat-linux-x64.tar.gz` |
-| Windows x64 | `TiketAlamat-windows-x64.zip` |
+| Platform | Berkas | Siap pakai? |
+|---|---|---|
+| Android | `TiketAlamat-android.apk` | ya — ini yang dipakai di gudang |
+| Windows x64 | `TiketAlamat-windows-x64.zip` | ya |
+| Linux x64 | `TiketAlamat-linux-x64.tar.gz` | ya |
+| macOS | `TiketAlamat-macos.zip` | ya, tapi belum ditandatangani Apple |
+| iOS | `TiketAlamat-ios-unsigned.zip` | **tidak** — lihat di bawah |
+
+> **iOS tidak bisa dipasang dari berkas ini.** Apple mewajibkan aplikasi
+> ditandatangani sertifikat berbayar (Apple Developer Program, ~$99/tahun) dan
+> disebarkan lewat TestFlight atau App Store. Berkas yang dihasilkan CI dibangun
+> `--no-codesign`, jadi gunanya hanya membuktikan kodenya tetap terkompilasi
+> untuk iOS. Kalau nanti perlu iPhone di gudang, yang dibutuhkan adalah akun
+> developer Apple, bukan perubahan kode.
+>
+> **macOS** ikut dibangun tanpa tanda tangan. Saat pertama dibuka, macOS akan
+> menolaknya — klik kanan berkasnya lalu pilih **Open** untuk melewati
+> Gatekeeper, atau tandatangani dengan akun developer Apple.
 
 Membuat rilis:
 
@@ -61,11 +74,12 @@ Untuk sekadar mencoba build tanpa membuat tag, jalankan workflow lewat tombol
   **Simpan `rilis.jks` baik-baik.** Kalau hilang, semua HP harus uninstall
   dulu sebelum bisa dipasangi versi berikutnya. Berkas ini tidak boleh masuk
   git (sudah ada di `.gitignore`).
-- **Desktop hanya untuk melihat/mengelola data, bukan mencetak.**
-  `print_bluetooth_thermal` mendukung Android/iOS/macOS/Windows saja, dan
-  `permission_handler` tidak punya implementasi Linux. Di Linux tombol printer
-  akan memunculkan error, bukan mencetak. Cetak thermal yang teruji hanya di
-  Android (RPP02N).
+- **Cetak Bluetooth hanya di Android** (teruji dengan RPP02N). Di Windows,
+  Linux, dan macOS jalurnya **USB lewat sistem cetak OS** — CUPS `lp -o raw`
+  di Linux/macOS, winspool datatype `RAW` di Windows. Jalur USB itu belum
+  pernah diuji dengan printer fisik.
+- Di macOS, `permission_handler` tidak punya implementasi sama sekali, jadi
+  jalur Bluetooth di sana pasti gagal — karena itu macOS diarahkan ke CUPS.
 - Tata letaknya dirancang untuk layar ponsel potret; di desktop jendelanya
   hanya melebar, belum ditata ulang.
 

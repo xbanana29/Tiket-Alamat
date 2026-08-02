@@ -138,9 +138,57 @@ jobs:
           name: windows
           path: TiketAlamat-windows-x64.zip
 
+  macos:
+    name: macOS
+    needs: periksa
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release --build-name=${{ needs.periksa.outputs.versi }} --build-number=${{ github.run_number }}
+      - name: Bundel
+        # .app adalah direktori; di-zip agar atribut bundelnya utuh.
+        run: |
+          cd build/macos/Build/Products/Release
+          ditto -c -k --keepParent --sequesterRsrc "Tiket Alamat.app" "$GITHUB_WORKSPACE/TiketAlamat-macos.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: TiketAlamat-macos.zip
+
+  ios:
+    name: iOS (tanpa tanda tangan)
+    needs: periksa
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # --no-codesign: repo ini tidak punya sertifikat Apple. Hasilnya .app
+      # yang TIDAK bisa dipasang ke iPhone — hanya bukti bahwa kodenya
+      # tetap terkompilasi untuk iOS. Lihat README.
+      - run: flutter build ios --release --no-codesign --build-name=${{ needs.periksa.outputs.versi }} --build-number=${{ github.run_number }}
+      - name: Bundel
+        run: |
+          cd build/ios/iphoneos
+          ditto -c -k --keepParent --sequesterRsrc Runner.app "$GITHUB_WORKSPACE/TiketAlamat-ios-unsigned.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: TiketAlamat-ios-unsigned.zip
+
   release:
     name: Terbitkan Release
-    needs: [android, linux, windows]
+    needs: [android, linux, windows, macos, ios]
     # workflow_dispatch berhenti di artefak; hanya tag yang jadi Release.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
