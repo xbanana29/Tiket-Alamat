@@ -241,6 +241,8 @@ Future<void> _bukaDialogPelanggan(BuildContext context, AppState s) async {
     context: context,
     builder: (_) => _DialogPelanggan(awal: s.pelanggan),
   );
+  // null = dialog ditutup lewat scrim/tombol back → biarkan apa adanya.
+  // 'Batal' mengembalikan string kosong: artinya buang nama, mulai dari awal.
   if (hasil != null) s.pelangganCtl.text = hasil;
 }
 
@@ -311,7 +313,9 @@ class _DialogPelangganState extends State<_DialogPelanggan> {
           FooterDua(
             kiri: 'Batal',
             kanan: 'OK',
-            onKiri: () => Navigator.pop(context),
+            // Batal = kosongkan nama, bukan sekadar menutup dialog. Petugas
+            // memakainya untuk membatalkan pelanggan dan mulai dari awal.
+            onKiri: () => Navigator.pop(context, ''),
             onKanan: _simpan,
           ),
         ],
@@ -587,7 +591,11 @@ class KeypadSheet extends StatelessWidget {
                     ],
                   ),
                 ),
+                // 3 kolom, sama persis dengan numpad Minyak: 1-2-3 / 4-5-6 /
+                // 7-8-9 / C-0-aksi. Petugas berpindah antar mode sepanjang
+                // hari, jadi letak angkanya tidak boleh berubah.
                 Numpad(
+                  kolom: 3,
                   onDigit: s.tekan,
                   onClear: s.hapusBuf,
                   onAkhir: s.konfirmasiQty,
