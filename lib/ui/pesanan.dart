@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../printer.dart';
+import '../state.dart';
 
 import '../theme.dart';
 import 'widgets.dart';
@@ -41,10 +42,7 @@ class TabPesanan extends StatelessWidget {
             children: [
               const LabelMikro('Nama pelanggan'),
               const SizedBox(height: 4),
-              Isian(
-                controller: s.pelangganCtl,
-                hint: 'Ketik nama toko / pelanggan',
-              ),
+              const _KolomPelanggan(),
             ],
           ),
         ),
@@ -192,6 +190,132 @@ class _Sak extends StatelessWidget {
         ),
         if (!kb) Flexible(child: _GridMerek(merek: s.merekAktif)),
       ],
+    );
+  }
+}
+
+/// Nama pelanggan tampil sebagai kotak yang diketuk, bukan kolom ketik langsung.
+///
+/// Dengan kolom inline, petugas harus menutup keyboard sendiri sebelum bisa
+/// melanjutkan — dan itu yang sering membingungkan. Dialog punya tombol OK
+/// yang jelas, dan keyboard ikut tertutup bersamanya.
+class _KolomPelanggan extends StatelessWidget {
+  const _KolomPelanggan();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final f = fs(context);
+    return Tap(
+      onTap: () => _bukaDialogPelanggan(context, s),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: fieldFill,
+          border: Border.all(color: divider),
+        ),
+        child: ValueListenableBuilder(
+          valueListenable: s.pelangganCtl,
+          builder: (_, v, _) {
+            final kosong = v.text.trim().isEmpty;
+            return Text(
+              kosong ? 'Ketuk untuk isi nama pelanggan' : v.text.trim(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: f * .95,
+                fontWeight: FontWeight.w600,
+                color: kosong ? neutral500 : ink,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _bukaDialogPelanggan(BuildContext context, AppState s) async {
+  final hasil = await showDialog<String>(
+    context: context,
+    builder: (_) => _DialogPelanggan(awal: s.pelanggan),
+  );
+  if (hasil != null) s.pelangganCtl.text = hasil;
+}
+
+class _DialogPelanggan extends StatefulWidget {
+  final String awal;
+  const _DialogPelanggan({required this.awal});
+
+  @override
+  State<_DialogPelanggan> createState() => _DialogPelangganState();
+}
+
+class _DialogPelangganState extends State<_DialogPelanggan> {
+  late final ctl = TextEditingController(text: widget.awal)
+    ..selection = TextSelection.collapsed(offset: widget.awal.length);
+
+  @override
+  void dispose() {
+    ctl.dispose();
+    super.dispose();
+  }
+
+  void _simpan() => Navigator.pop(context, ctl.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    final f = fs(context);
+    return Dialog(
+      backgroundColor: bg,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: ink, width: 2),
+        borderRadius: BorderRadius.zero,
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const LabelMikro('Nama pelanggan'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: ctl,
+                  // Keyboard langsung muncul; petugas tidak perlu mengetuk lagi.
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  cursorColor: accent,
+                  // Tombol Enter di keyboard sama artinya dengan menekan OK.
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _simpan(),
+                  style: TextStyle(
+                    fontSize: f * 1.05,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Nama toko / pelanggan',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          FooterDua(
+            kiri: 'Batal',
+            kanan: 'OK',
+            onKiri: () => Navigator.pop(context),
+            onKanan: _simpan,
+          ),
+        ],
+      ),
     );
   }
 }
