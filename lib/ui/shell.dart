@@ -62,11 +62,14 @@ class Shell extends StatelessWidget {
             ),
             if (s.armed != null) const KeypadSheet(),
             if (s.printOpen) const PratinjauCetak(),
+            // Toast di atas, bukan di bawah: bagian bawah layar penuh tombol
+            // yang sering ditekan berturut-turut (numpad, Cetak tiket, tab),
+            // dan toast di sana menutupi tepat tombol berikutnya.
             if (s.toast.isNotEmpty)
               Positioned(
-                left: 14,
-                right: 14,
-                bottom: kb ? 14 : 70,
+                left: 8,
+                right: 8,
+                top: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
