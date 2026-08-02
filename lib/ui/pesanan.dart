@@ -190,24 +190,54 @@ class _Sak extends StatelessWidget {
             ),
           ),
         ),
-        if (!kb)
-          Flexible(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 230),
-              child: GridView.count(
-                crossAxisCount: 3,
-                padding: const EdgeInsets.all(10),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1 / .72,
-                children: [
-                  for (final b in s.merekAktif)
-                    _TileMerek(merek: b, qty: s.qtyOf(b.nama)),
-                ],
-              ),
-            ),
-          ),
+        if (!kb) Flexible(child: _GridMerek(merek: s.merekAktif)),
       ],
+    );
+  }
+}
+
+/// Grid merek: tingginya dibagi rata untuk 3 baris, jadi tepat 9 tile terlihat
+/// penuh. Sebelumnya ukuran tile ditentukan rasio sisi, sehingga baris ketiga
+/// selalu terpotong separuh dan tampak seperti kotak kosong.
+///
+/// Lebih dari 9 merek → menggulir, tetap 3 baris kelihatan. Sembilan atau
+/// kurang → gulir dimatikan supaya tidak memantul saat disentuh.
+class _GridMerek extends StatelessWidget {
+  final List<Merek> merek;
+  const _GridMerek({required this.merek});
+
+  static const _baris = 3;
+  static const _kolom = 3;
+  static const _pad = 10.0;
+  static const _spasi = 8.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 280),
+      child: LayoutBuilder(
+        builder: (_, box) {
+          final tersedia = box.maxHeight.isFinite ? box.maxHeight : 280.0;
+          final tinggiTile =
+              ((tersedia - _pad * 2 - _spasi * (_baris - 1)) / _baris)
+                  .clamp(48.0, 140.0);
+          final muatSemua = merek.length <= _baris * _kolom;
+          return GridView.builder(
+            padding: const EdgeInsets.all(_pad),
+            physics: muatSemua ? const NeverScrollableScrollPhysics() : null,
+            itemCount: merek.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _kolom,
+              mainAxisSpacing: _spasi,
+              crossAxisSpacing: _spasi,
+              mainAxisExtent: tinggiTile,
+            ),
+            itemBuilder: (_, i) =>
+                _TileMerek(merek: merek[i], qty: s.qtyOf(merek[i].nama)),
+          );
+        },
+      ),
     );
   }
 }
@@ -234,8 +264,12 @@ class _TileMerek extends StatelessWidget {
               alignment: Alignment.bottomLeft,
               child: Padding(
                 padding: const EdgeInsets.all(8),
+                // Tile kini lebih pendek; nama sepanjang "GULA PASIR RAJA"
+                // harus terpotong rapi, bukan meluap jadi garis merah.
                 child: Text(
                   merek.nama,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: f * 1.05,
                     fontWeight: FontWeight.w700,
