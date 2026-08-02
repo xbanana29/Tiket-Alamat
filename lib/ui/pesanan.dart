@@ -547,6 +547,9 @@ class KeypadSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final f = fs(context);
+    final qtySekarang = s.armed == null ? 0 : s.qtyOf(s.armed!);
+    // Sudah punya isi lalu dikonfirmasi 0 = batalkan barangnya.
+    final akanBatal = qtySekarang > 0 && (int.tryParse(s.buf) ?? 0) == 0;
     return Stack(
       children: [
         Positioned.fill(
@@ -581,7 +584,11 @@ class KeypadSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const LabelMikro('Jumlah sak'),
+                            LabelMikro(
+                              qtySekarang > 0
+                                  ? 'Jumlah sak · sekarang $qtySekarang'
+                                  : 'Jumlah sak',
+                            ),
                             Text(s.armed ?? '—', style: heading(f)),
                           ],
                         ),
@@ -599,7 +606,9 @@ class KeypadSheet extends StatelessWidget {
                   onDigit: s.tekan,
                   onClear: s.hapusBuf,
                   onAkhir: s.konfirmasiQty,
-                  labelAkhir: '✓',
+                  // Barang yang sudah dipilih + angka 0 = dibatalkan. Tombolnya
+                  // ikut berubah supaya petugas tahu itu sebelum menekan.
+                  labelAkhir: akanBatal ? '✕' : '✓',
                 ),
               ],
             ),

@@ -254,6 +254,75 @@ void main() {
     });
   });
 
+  group('konfirmasiQty', () {
+    AppState app() => AppState(store: _StoreHampa(), sync: _SyncPalsu({}));
+
+    test('angka > 0 menambahkan barang', () {
+      final a = app()
+        ..bukaKeypad('ACI GA')
+        ..tekan('5')
+        ..konfirmasiQty();
+      expect(a.qtyOf('ACI GA'), 5);
+      expect(a.armed, isNull);
+    });
+
+    test('konfirmasi 0 pada barang terpilih membatalkannya', () {
+      // Dulu keypad hanya tertutup dan tile tetap tercentang — tidak ada cara
+      // membatalkan selain menebak bahwa baris struk bisa diketuk.
+      final a = app()
+        ..bukaKeypad('ACI GA')
+        ..tekan('5')
+        ..konfirmasiQty();
+      expect(a.qtyOf('ACI GA'), 5);
+
+      a
+        ..bukaKeypad('ACI GA')
+        ..konfirmasiQty(); // buf kosong = 0
+
+      expect(a.qtyOf('ACI GA'), 0);
+      expect(a.items.any((i) => i.nama == 'ACI GA'), isFalse);
+      expect(a.armed, isNull);
+    });
+
+    test('tombol C lalu konfirmasi juga membatalkan', () {
+      final a = app()
+        ..bukaKeypad('ACI GA')
+        ..tekan('7')
+        ..konfirmasiQty();
+
+      a
+        ..bukaKeypad('ACI GA')
+        ..tekan('9')
+        ..hapusBuf()
+        ..konfirmasiQty();
+
+      expect(a.qtyOf('ACI GA'), 0);
+    });
+
+    test('konfirmasi 0 pada barang yang belum dipilih hanya menutup', () {
+      final a = app()
+        ..bukaKeypad('DAHLIA')
+        ..konfirmasiQty();
+      expect(a.items, isEmpty);
+      expect(a.armed, isNull);
+    });
+
+    test('membatalkan satu barang tidak mengganggu yang lain', () {
+      final a = app()
+        ..bukaKeypad('ACI GA')
+        ..tekan('5')
+        ..konfirmasiQty()
+        ..bukaKeypad('DAHLIA')
+        ..tekan('3')
+        ..konfirmasiQty()
+        ..bukaKeypad('ACI GA')
+        ..konfirmasiQty();
+
+      expect(a.qtyOf('ACI GA'), 0);
+      expect(a.qtyOf('DAHLIA'), 3);
+    });
+  });
+
   group('gabungTiket', () {
     Tiket t(String id, {String pelanggan = 'A', String status = statusTerkirim, int menit = 0}) =>
         Tiket(

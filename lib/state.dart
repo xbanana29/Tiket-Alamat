@@ -373,16 +373,32 @@ class AppState extends ChangeNotifier {
   void konfirmasiQty() {
     final q = int.tryParse(buf) ?? 0;
     final nama = armed;
-    if (nama != null && q > 0) {
+    if (nama == null) return tutupKeypad();
+
+    if (q > 0) {
       ubah(() {
         items = upsertItem(items, nama, q);
         armed = null;
         buf = '';
       });
       tampilToast('$nama · $q sak');
-    } else {
-      tutupKeypad();
+      return;
     }
+
+    // Konfirmasi 0 pada merek yang sudah dipilih = batalkan barangnya.
+    // Sebelumnya keypad hanya tertutup dan tile tetap tercentang, jadi tidak
+    // ada cara membatalkan tanpa menebak bahwa baris di struk bisa diketuk.
+    if (qtyOf(nama) > 0) {
+      ubah(() {
+        items = items.where((i) => i.nama != nama).toList();
+        armed = null;
+        buf = '';
+      });
+      tampilToast('$nama dibatalkan');
+      return;
+    }
+
+    tutupKeypad();
   }
 
   void hapusItem(int i) => ubah(() => items = List.of(items)..removeAt(i));
