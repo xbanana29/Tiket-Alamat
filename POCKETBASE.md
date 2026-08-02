@@ -247,9 +247,14 @@ Koleksi **`merek`**:
 | Field | Tipe | Setelan |
 |---|---|---|
 | `nama` | Text | required |
-| `kategori` | Select | required, max 1, values `Terigu`, `Gula` |
+| `kategori` | **Text** | required |
 | `dihapus` | Bool | — |
 | `diubah` | Date | required |
+
+> `kategori` sengaja **Text**, bukan Select. Select dengan daftar pilihan kosong
+> menolak semua nilai dan sync merek gagal diam-diam — itu pernah terjadi.
+> Menambah kategori baru nanti (mis. "Beras") juga tidak akan menuntut ubah
+> skema server. Nilainya sudah dibatasi di UI aplikasi.
 
 Index: `CREATE UNIQUE INDEX \`idx_merek_nama\` ON \`merek\` (\`nama\`)`
 

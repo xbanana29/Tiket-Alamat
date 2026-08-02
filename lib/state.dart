@@ -239,7 +239,7 @@ class AppState extends ChangeNotifier {
     if (online) {
       unawaited(unggahAntrian(diam: true));
       unawaited(tarikTiket()); // tiket perangkat lain untuk hari ini
-      unawaited(tarikMerek()); // daftar merek bersama
+      unawaited(selarasMerek()); // daftar merek bersama
     }
   }
 
@@ -494,7 +494,7 @@ class AppState extends ChangeNotifier {
       brands = l;
     }, simpan: true);
     tampilToast(namaLama == null ? '$n ditambahkan' : '$n disimpan');
-    unawaited(dorongMerek());
+    unawaited(selarasMerek());
   }
 
   /// Hapus lunak — barisnya tetap ada supaya perangkat lain ikut menghapusnya.
@@ -505,7 +505,7 @@ class AppState extends ChangeNotifier {
       brands = l;
     }, simpan: true);
     tampilToast('$nama dihapus');
-    unawaited(dorongMerek());
+    unawaited(selarasMerek());
   }
 
   static void _tandai(
@@ -524,7 +524,7 @@ class AppState extends ChangeNotifier {
   void bukaTab(String t) {
     ubah(() => tab = t);
     if (t == 'daftar') unawaited(tarikTiket());
-    if (t == 'atur') unawaited(tarikMerek());
+    if (t == 'atur') unawaited(selarasMerek());
   }
 
   /// Geser tanggal yang dilihat di Daftar; [hari] null berarti kembali hari ini.
@@ -535,34 +535,38 @@ class AppState extends ChangeNotifier {
     unawaited(tarikTiket());
   }
 
-  /// Kirim seluruh merek lokal ke server, lalu tarik balik hasil gabungannya.
+  /// Selaraskan daftar merek dengan server: tarik dulu, lalu kirim hanya baris
+  /// yang versinya lebih baru di sini (atau belum ada di sana).
   ///
-  /// Daftarnya puluhan baris, bukan ribuan — mengirim semuanya jauh lebih
-  /// sederhana daripada melacak baris mana yang kotor.
+  /// Tarik-lalu-kirim, bukan kirim-semua: perangkat yang sudah punya merek
+  /// sebelum sync menyala tetap mengunggahnya tanpa petugas harus menyentuh
+  /// satu per satu, dan perangkat yang sudah sinkron tidak mengirim apa pun.
   ///
-  /// ponytail: pindah ke penanda "belum terkirim" per baris kalau daftar merek
-  /// sudah ratusan dan pengiriman terasa lambat.
-  Future<void> dorongMerek({bool diam = true}) async {
-    if (!online) return;
-    try {
-      for (final m in brands) {
-        await _sync.pushMerek(serverUrl, m);
-      }
-      await tarikMerek(diam: true);
-    } on Object catch (e) {
-      if (!diam) tampilToast('Gagal kirim merek: $e');
-    }
-  }
-
-  Future<void> tarikMerek({bool diam = true}) async {
+  /// ponytail: satu request per baris yang berubah. Pakai batch API kalau
+  /// daftar merek sudah ratusan dan terasa lambat.
+  Future<void> selarasMerek({bool diam = true}) async {
     if (!online) return;
     try {
       final dariServer = await _sync.tarikMerek(serverUrl);
-      if (dariServer.isEmpty) return;
+      final diServer = {for (final m in dariServer) m.nama: m};
       final gabungan = gabungMerek(brands, dariServer);
+
+      var terkirim = 0;
+      for (final m in gabungan) {
+        final s = diServer[m.nama];
+        if (s == null || m.diubah.isAfter(s.diubah)) {
+          await _sync.pushMerek(serverUrl, m);
+          terkirim++;
+        }
+      }
       ubah(() => brands = gabungan, simpan: true);
+      if (!diam) {
+        tampilToast(terkirim > 0
+            ? 'Merek tersinkron · $terkirim terkirim'
+            : 'Merek sudah terbaru');
+      }
     } on Object catch (e) {
-      if (!diam) tampilToast('Gagal ambil merek: $e');
+      if (!diam) tampilToast('Gagal sync merek: $e');
     }
   }
 

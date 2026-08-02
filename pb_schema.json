@@ -35,7 +35,7 @@
     ],
     "fields": [
       { "name": "nama", "type": "text", "required": true },
-      { "name": "kategori", "type": "select", "required": true, "maxSelect": 1, "values": ["Terigu", "Gula"] },
+      { "name": "kategori", "type": "text", "required": true },
       { "name": "dihapus", "type": "bool" },
       { "name": "diubah", "type": "date", "required": true }
     ]
