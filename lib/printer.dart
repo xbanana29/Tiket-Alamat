@@ -202,7 +202,7 @@ class Printer {
           width: PosTextSize.size2,
         ),
       ),
-      ...g.text('$kAppName · $lebarMm mm',
+      ...g.text(ascii('$kAppName · $lebarMm mm'),
           styles: const PosStyles(align: PosAlign.center)),
       ...g.hr(),
       ..._feedLaluPotong(g, paperFeed),
@@ -250,7 +250,7 @@ class Printer {
 
     // Nama pelanggan besar — bagian paling penting, dibaca dari jauh oleh kuli muat.
     b.addAll(g.text(
-      t.pelanggan,
+      ascii(t.pelanggan),
       styles: const PosStyles(
         align: PosAlign.center,
         bold: true,
@@ -258,8 +258,8 @@ class Printer {
         width: PosTextSize.size2,
       ),
     ));
-    b.addAll(g.text(fmtWaktuCetak(t.waktu), styles: tengah));
-    b.addAll(g.text('Petugas: ${t.petugas}', styles: tengah));
+    b.addAll(g.text(ascii(fmtWaktuCetak(t.waktu)), styles: tengah));
+    b.addAll(g.text(ascii('Petugas: ${t.petugas}'), styles: tengah));
     b.addAll(g.hr(ch: '='));
 
     if (t.isMinyak) {
@@ -288,7 +288,7 @@ class Printer {
       // 2x nama merek panjang terpotong ke baris berikutnya.
       for (final baris in t.barisTeks) {
         b.addAll(g.text(
-          baris,
+          ascii(baris),
           styles: const PosStyles(
             bold: true,
             height: PosTextSize.size1,
@@ -302,7 +302,7 @@ class Printer {
     b.addAll(g.row([
       PosColumn(text: 'TOTAL', width: 6, styles: const PosStyles(bold: true)),
       PosColumn(
-        text: t.totalLabel.toUpperCase(),
+        text: ascii(t.totalLabel.toUpperCase()),
         width: 6,
         styles: const PosStyles(bold: true, align: PosAlign.right),
       ),
@@ -336,6 +336,27 @@ class Printer {
 
   /// GS V 0 — potong penuh. Printer tanpa pisau mengabaikannya.
   static const _potongPenuh = [0x1D, 0x56, 0x30];
+
+  /// Padankan karakter tipografi ke ASCII sebelum dikirim ke printer.
+  ///
+  /// Printer thermal memakai code page 8-bit (CP437 dan sejenisnya). Karakter
+  /// di luar ASCII tercetak sebagai simbol acak — "·" pada "1 Agu 2026 · 09:41"
+  /// jadi lambang yang tidak ada hubungannya.
+  ///
+  /// Berlaku untuk semua teks, bukan hanya tanggal: nama pelanggan dan merek
+  /// diketik petugas dan bisa memuat karakter apa saja.
+  static String ascii(String s) {
+    const padanan = {
+      '·': '-', '•': '-', '–': '-', '—': '-', '−': '-',
+      '“': '"', '”': '"', '‘': "'", '’': "'", '´': "'", '`': "'",
+      '…': '...', '×': 'x', '₂': '2', '°': ' ',
+      'é': 'e', 'è': 'e', 'á': 'a', 'à': 'a', 'í': 'i', 'ó': 'o', 'ú': 'u',
+    };
+    var h = s;
+    padanan.forEach((k, v) => h = h.replaceAll(k, v));
+    // Sisanya dibuang, bukan dibiarkan jadi simbol acak.
+    return h.replaceAll(RegExp(r'[^\x20-\x7E]'), '');
+  }
 }
 
 const _bulan = [

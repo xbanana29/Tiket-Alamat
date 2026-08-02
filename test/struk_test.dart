@@ -106,6 +106,42 @@ void main() {
     });
   });
 
+  group('karakter non-ASCII', () {
+    test('padanan diterapkan', () {
+      // "·" di "1 Agu 2026 · 09:41" tercetak jadi simbol acak karena printer
+      // thermal memakai code page 8-bit.
+      expect(Printer.ascii('1 Agu 2026 · 09:41'), '1 Agu 2026 - 09:41');
+      expect(Printer.ascii('A – B'), 'A - B');
+      expect(Printer.ascii('“kutip”'), '"kutip"');
+      expect(Printer.ascii('CAFÉ'), 'CAF');
+      expect(Printer.ascii('SUDAH ASCII 123'), 'SUDAH ASCII 123');
+    });
+
+    test('tidak ada byte di luar ASCII di aliran cetak', () async {
+      final nakal = Tiket(
+        id: '1',
+        // Petugas mengetik nama sendiri — bisa memuat karakter apa pun.
+        pelanggan: 'TOKO “MAJU” – CABANG ①',
+        waktu: DateTime(2026, 8, 2, 10, 30),
+        petugas: 'Budi·S',
+        mode: 'sak',
+        items: const [Item('MERK — ×2', 3)],
+      );
+      final b = await Printer()
+          .bangunStruk(tiket: nakal, lebarMm: 58, copies: 1);
+      final nonAscii = b.where((x) => x > 0x7E).toList();
+      expect(nonAscii, isEmpty,
+          reason: 'ada ${nonAscii.length} byte >0x7E: $nonAscii');
+    });
+
+    test('waktu cetak tetap terbaca setelah dipadankan', () async {
+      final b = await Printer()
+          .bangunStruk(tiket: tiket, lebarMm: 58, copies: 1);
+      final teks = String.fromCharCodes(b.where((x) => x >= 0x20 && x <= 0x7E));
+      expect(teks, contains('2 Agu 2026 - 10:30'));
+    });
+  });
+
   test('isi catatan kaki tetap utuh', () async {
     final teks = kaki(baris(await bytes(80))).single;
     expect(teks, contains('Tanda terima gudang'));
