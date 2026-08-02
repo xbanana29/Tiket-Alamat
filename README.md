@@ -74,14 +74,15 @@ Untuk sekadar mencoba build tanpa membuat tag, jalankan workflow lewat tombol
   **Simpan `rilis.jks` baik-baik.** Kalau hilang, semua HP harus uninstall
   dulu sebelum bisa dipasangi versi berikutnya. Berkas ini tidak boleh masuk
   git (sudah ada di `.gitignore`).
-- **Cetak Bluetooth hanya di Android** (teruji dengan RPP02N). Di Windows,
-  Linux, dan macOS jalurnya **USB lewat sistem cetak OS** — CUPS `lp -o raw`
-  di Linux/macOS, winspool datatype `RAW` di Windows. Jalur USB itu belum
-  pernah diuji dengan printer fisik.
+- **Cetak Bluetooth hanya di Android** (teruji dengan RPP02N). Di desktop
+  jalurnya **USB lewat sistem cetak OS**:
+  - **Windows** — winspool datatype `RAW`. **Teruji** dengan RPP02N yang
+    dicolok USB memakai driver spooler bawaannya.
+  - **Linux & macOS** — CUPS `lp -o raw`. Belum diuji dengan printer fisik.
 - Di macOS, `permission_handler` tidak punya implementasi sama sekali, jadi
   jalur Bluetooth di sana pasti gagal — karena itu macOS diarahkan ke CUPS.
-- Tata letaknya dirancang untuk layar ponsel potret; di desktop jendelanya
-  hanya melebar, belum ditata ulang.
+- Tata letaknya dirancang untuk layar ponsel potret; di desktop isinya
+  dibatasi 430 px dan ditaruh di tengah, jadi tidak melar saat jendela lebar.
 
 ## Struktur
 
@@ -108,6 +109,15 @@ RPP02N (dan sejenisnya) memakai Bluetooth **Classic/SPP**, bukan BLE.
 
 Bila printer gagal saat mencetak tiket, **tiket tetap tersimpan** — kertas bisa
 diulang lewat **Daftar → Cetak ulang**.
+
+### Printer USB di Windows
+
+RPP02N yang sama juga bisa dicolok USB ke PC. Pasang driver spooler bawaannya
+seperti printer biasa, lalu di aplikasi buka **Pengaturan → Printer → Cari
+printer** dan pilih antreannya. Sudah diuji dan mencetak dengan benar.
+
+Berguna sebagai cadangan: kalau HP gudang rusak atau kehabisan baterai, tiket
+tetap bisa dicetak dari PC — datanya sama karena keduanya menarik dari server.
 
 ## PocketBase
 
