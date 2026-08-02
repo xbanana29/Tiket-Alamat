@@ -319,13 +319,23 @@ class Printer {
   }
 
   /// [paperFeed] = baris kosong ekstra sebelum potong (0–3).
+  ///
+  /// `g.cut()` bawaan paket menyisipkan **5 baris kosong** yang tidak bisa
+  /// dimatikan, lalu `paperFeed` kita ditambahkan di atasnya — jadi setiap
+  /// struk minimal membuang 5 baris (~2 cm) kertas. Feed-nya dikirim sendiri
+  /// supaya jumlahnya benar-benar terkendali.
   List<int> _feedLaluPotong(Generator g, int paperFeed) {
-    final n = paperFeed.clamp(0, 3);
+    // Print head ke gerigi sobek berjarak ~1 cm; tanpa sisa ini baris terakhir
+    // ikut tersobek.
+    const barisMinimum = 2;
     return [
-      if (n > 0) ...g.feed(n),
-      ...g.cut(),
+      ...g.emptyLines(barisMinimum + paperFeed.clamp(0, 3)),
+      ..._potongPenuh,
     ];
   }
+
+  /// GS V 0 — potong penuh. Printer tanpa pisau mengabaikannya.
+  static const _potongPenuh = [0x1D, 0x56, 0x30];
 }
 
 const _bulan = [

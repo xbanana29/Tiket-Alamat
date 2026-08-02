@@ -71,6 +71,41 @@ void main() {
     expect(teks.length, lessThanOrEqualTo(muat80));
   });
 
+  group('sisa kertas di bawah', () {
+    /// Baris kosong setelah teks terakhir, sebelum perintah potong.
+    int barisKosongDiAkhir(List<int> b) {
+      final potong = b.length - 3; // GS V 0 di paling akhir
+      var n = 0;
+      for (var i = potong - 1; i >= 0 && b[i] == 0x0A; i--) {
+        n++;
+      }
+      return n;
+    }
+
+    test('tanpa paperFeed, sisa kertas seminimal mungkin', () async {
+      // g.cut() bawaan paket memaksa 5 baris kosong; itu ~2 cm terbuang tiap
+      // struk, dan dua kali lipat kalau cetak 2 rangkap.
+      final b = await Printer()
+          .bangunStruk(tiket: tiket, lebarMm: 58, copies: 1, paperFeed: 0);
+      expect(barisKosongDiAkhir(b), lessThanOrEqualTo(3),
+          reason: 'sisa ${barisKosongDiAkhir(b)} baris kosong');
+    });
+
+    test('paperFeed menambah sisa sesuai setelan', () async {
+      final tanpa = await Printer()
+          .bangunStruk(tiket: tiket, lebarMm: 58, copies: 1, paperFeed: 0);
+      final dengan = await Printer()
+          .bangunStruk(tiket: tiket, lebarMm: 58, copies: 1, paperFeed: 3);
+      expect(barisKosongDiAkhir(dengan) - barisKosongDiAkhir(tanpa), 3);
+    });
+
+    test('perintah potong tetap dikirim', () async {
+      final b = await Printer()
+          .bangunStruk(tiket: tiket, lebarMm: 58, copies: 1, paperFeed: 0);
+      expect(b.sublist(b.length - 3), [0x1D, 0x56, 0x30]);
+    });
+  });
+
   test('isi catatan kaki tetap utuh', () async {
     final teks = kaki(baris(await bytes(80))).single;
     expect(teks, contains('Tanda terima gudang'));
