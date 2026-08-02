@@ -171,10 +171,13 @@ HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
   }
 
   final diServer = {for (final m in server) m.nama: m};
-  final daftar = buangMerekTerhapus(
-    gabungMerek(lokal, server),
-    diServer.keys.toSet(),
-  );
+  final gabungan = gabungMerek(lokal, server);
+  // Server kosong lebih mungkin berarti "belum ada isinya" daripada "semua
+  // merek baru saja dihapus". Membuang seluruh daftar lokal karenanya terlalu
+  // mahal untuk ditebak — HP justru yang mengisi.
+  final daftar = server.isEmpty
+      ? gabungan
+      : buangMerekTerhapus(gabungan, diServer.keys.toSet());
   final kirim = daftar.where((m) {
     if (merekBawaan(m)) return false;
     final s = diServer[m.nama];
@@ -192,9 +195,17 @@ HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
 /// Merek yang **belum pernah terkirim** tidak disentuh: ketidakhadirannya di
 /// server berarti belum sempat diunggah, bukan sudah dihapus.
 List<Merek> buangMerekTerhapus(List<Merek> daftar, Set<String> adaDiServer) =>
-    daftar
-        .where((m) => !m.terkirim || adaDiServer.contains(m.nama))
-        .toList();
+    daftar.where((m) {
+      if (adaDiServer.contains(m.nama)) return true;
+      // Tidak ada di server. Yang dipertahankan hanya merek buatan petugas yang
+      // memang belum sempat diunggah.
+      //
+      // Merek tanpa stempel waktu ikut dibuang: itu contoh bawaan pabrik atau
+      // sisa data lama yang tidak pernah ikut sinkronisasi — tanpa aturan ini
+      // keduanya terjebak selamanya, tidak pernah dikirim (karena dianggap
+      // bawaan) dan tidak pernah dibuang.
+      return !m.terkirim && !merekBawaan(m);
+    }).toList();
 
 String kunciTanggal(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'

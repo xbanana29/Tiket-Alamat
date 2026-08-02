@@ -177,9 +177,14 @@ class Merek {
     diubah: j['diubah'] == null
         ? DateTime.fromMillisecondsSinceEpoch(0)
         : DateTime.parse(j['diubah'] as String),
-    // Data lama yang pernah dihapus lunak diperlakukan seperti sudah terkirim
-    // supaya ikut dibersihkan pada sinkronisasi berikutnya.
-    terkirim: j['terkirim'] as bool? ?? j['dihapus'] as bool? ?? false,
+    // Data lama belum punya penanda ini. Defaultnya **true**: versi sebelumnya
+    // mengunggah setiap merek non-bawaan pada tiap sinkronisasi, jadi yang
+    // tersimpan di disk memang sudah pernah sampai ke server.
+    //
+    // Memilih false justru berbahaya — merek yang sudah dihapus di server akan
+    // dianggap "belum diunggah" lalu dikirim kembali, dan penghapusan
+    // membatalkan dirinya sendiri.
+    terkirim: j['terkirim'] as bool? ?? true,
   );
 }
 

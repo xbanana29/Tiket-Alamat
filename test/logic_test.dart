@@ -483,12 +483,46 @@ void main() {
       expect(h.single.nama, 'A');
     });
 
+    test('sisa data lama tanpa stempel waktu ikut dibuang', () {
+      // Tanpa aturan ini merek seperti itu terjebak: tidak pernah dikirim
+      // (dianggap bawaan) dan tidak pernah dibuang.
+      final h = buangMerekTerhapus(
+        [Merek('GULA PASIR NK', 'Gula')], // diubah = 0, terkirim = false
+        {'GULA NK'},
+      );
+      expect(h, isEmpty);
+    });
+
     test('yang masih ada di server tetap disimpan', () {
       final h = buangMerekTerhapus(
         [Merek('A', 'Terigu', diubah: t, terkirim: true)],
         {'A'},
       );
       expect(h.length, 1);
+    });
+  });
+
+  group('migrasi data lama', () {
+    test('data tanpa penanda terkirim dianggap sudah pernah diunggah', () {
+      // Versi lama mengunggah tiap merek non-bawaan pada tiap sync. Kalau
+      // defaultnya false, merek yang sudah dihapus di server akan dikirim
+      // kembali dan penghapusan membatalkan dirinya sendiri.
+      final m = Merek.fromJson({
+        'nama': 'A',
+        'kategori': 'Terigu',
+        'diubah': DateTime(2026, 8, 2).toIso8601String(),
+      });
+      expect(m.terkirim, isTrue);
+    });
+
+    test('penanda yang tersimpan tetap dihormati', () {
+      final m = Merek.fromJson({
+        'nama': 'A',
+        'kategori': 'Terigu',
+        'diubah': DateTime(2026, 8, 2).toIso8601String(),
+        'terkirim': false,
+      });
+      expect(m.terkirim, isFalse);
     });
   });
 
@@ -512,6 +546,28 @@ void main() {
       );
       expect(h.daftar.map((e) => e.nama), ['GULA PASIR NK']);
       expect(h.kirim, isEmpty);
+    });
+
+    test('server kosong tidak menghapus daftar lokal', () {
+      // Server kosong lebih mungkin "belum ada isinya" daripada "semua baru
+      // saja dihapus". Membuang seluruh daftar karena tebakan itu terlalu mahal.
+      final h = selaraskanMerek(
+        [Merek('A', 'Terigu', diubah: t, terkirim: true)],
+        const [],
+      );
+      expect(h.daftar.single.nama, 'A');
+      expect(h.kirim.single.nama, 'A');
+    });
+
+    test('merek yang lenyap di server ikut dibuang saat server ada isinya', () {
+      final h = selaraskanMerek(
+        [
+          Merek('A', 'Terigu', diubah: t, terkirim: true),
+          Merek('B', 'Terigu', diubah: t, terkirim: true),
+        ],
+        [Merek('B', 'Terigu', diubah: t)],
+      );
+      expect(h.daftar.map((e) => e.nama), ['B']);
     });
 
     test('merek buatan petugas tetap dikirim', () {
