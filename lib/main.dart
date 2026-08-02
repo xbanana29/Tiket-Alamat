@@ -20,6 +20,11 @@ void main() {
   });
 }
 
+/// Warna bilah navigasi Android — sengaja beda tipis dari latar aplikasi
+/// supaya batas bawah layar tetap terbaca.
+const _navTerang = Color(0xFFE4E2E2);
+const _navGelap = Color(0xFF141414);
+
 /// Batasi lebar isi ke ukuran ponsel dan taruh di tengah.
 ///
 /// Rancangannya 390×844. Di jendela desktop yang bisa selebar apa pun, numpad
@@ -114,13 +119,29 @@ class _TiketAlamatAppState extends State<TiketAlamatApp>
                     (dark ? AppPalette.dark : AppPalette.light),
               );
               final overlay = dark
-                  ? SystemUiOverlayStyle.light.copyWith(
+                  // Nama SystemUiOverlayStyle.light/.dark menyesatkan: `.dark`
+                  // menyetel ikon navigasi jadi PUTIH. Dipakai bersama warna
+                  // navbar terang, tombol navigasi Android jadi tak terlihat.
+                  // Kecerahan ikon karena itu ditulis eksplisit, tidak
+                  // mengandalkan preset.
+                  ? const SystemUiOverlayStyle(
                       statusBarColor: Colors.transparent,
-                      systemNavigationBarColor: AppPalette.dark.bg,
+                      statusBarIconBrightness: Brightness.light,
+                      statusBarBrightness: Brightness.dark,
+                      systemNavigationBarColor: _navGelap,
+                      systemNavigationBarIconBrightness: Brightness.light,
+                      systemNavigationBarDividerColor: _navGelap,
                     )
-                  : SystemUiOverlayStyle.dark.copyWith(
+                  : const SystemUiOverlayStyle(
                       statusBarColor: Colors.transparent,
-                      systemNavigationBarColor: AppPalette.light.bg,
+                      statusBarIconBrightness: Brightness.dark,
+                      statusBarBrightness: Brightness.light,
+                      // Sedikit lebih gelap dari latar aplikasi supaya navbar
+                      // punya batas yang terlihat, bukan menyatu jadi bidang
+                      // putih tanpa ujung.
+                      systemNavigationBarColor: _navTerang,
+                      systemNavigationBarIconBrightness: Brightness.dark,
+                      systemNavigationBarDividerColor: _navTerang,
                     );
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: overlay,

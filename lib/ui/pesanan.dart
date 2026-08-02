@@ -468,7 +468,11 @@ class _StrukHidup extends StatelessWidget {
             builder: (_, v, _) => Text(
               v.text.trim().isEmpty ? '—' : v.text.trim().toUpperCase(),
               textAlign: TextAlign.center,
-              style: heading(f * .78 * 3.4, height: 1.05, color: paperInk),
+              // 2,2x — printer mencetak nama pada size2 (dua kali teks biasa),
+              // jadi ukuran ini sekaligus lebih jujur mewakili hasil cetak
+              // daripada 3,4x yang lama, dan tidak lagi mendorong daftar
+              // barang keluar layar.
+              style: heading(f * .78 * 2.2, height: 1.1, color: paperInk),
             ),
           ),
           const SizedBox(height: 10),
@@ -699,7 +703,8 @@ class KertasStruk extends StatelessWidget {
           Text(
             tiket.pelanggan.isEmpty ? '—' : tiket.pelanggan,
             textAlign: TextAlign.center,
-            style: heading(f * .76 * 3.4, height: 1.05, color: paperInk),
+            // Disamakan dengan pratinjau hidup di tab Pesanan.
+            style: heading(f * .76 * 2.2, height: 1.1, color: paperInk),
           ),
           const SizedBox(height: 10),
           Text(fmtWaktuCetak(tiket.waktu),
