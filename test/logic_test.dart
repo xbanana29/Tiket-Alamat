@@ -362,6 +362,34 @@ void main() {
     });
   });
 
+  group('buangNisanYatim', () {
+    final t = DateTime(2026, 8, 2);
+
+    test('nisan yang barisnya sudah lenyap di server ikut dibuang', () {
+      // Kalau ditahan, ia akan diunggah ulang dan pembersihan di Admin UI
+      // seolah membatalkan dirinya sendiri.
+      final h = buangNisanYatim(
+        [Merek('A', 'Terigu', dihapus: true, diubah: t)],
+        <String>{},
+      );
+      expect(h, isEmpty);
+    });
+
+    test('nisan tetap disimpan selama barisnya masih ada di server', () {
+      final h = buangNisanYatim(
+        [Merek('A', 'Terigu', dihapus: true, diubah: t)],
+        {'A'},
+      );
+      expect(h.single.dihapus, isTrue);
+    });
+
+    test('merek aktif tidak pernah dibuang walau server belum punya', () {
+      // Justru perangkat inilah yang harus mengirimkannya.
+      final h = buangNisanYatim([Merek('A', 'Terigu', diubah: t)], <String>{});
+      expect(h.single.nama, 'A');
+    });
+  });
+
   group('persistensi', () {
     test('tiket bolak-balik lewat JSON tanpa kehilangan data', () {
       final t = _tiket(

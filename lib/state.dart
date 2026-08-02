@@ -111,6 +111,21 @@ List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
   return urut;
 }
 
+/// Buang penanda hapus yang barisnya sudah tidak ada di server.
+///
+/// Penanda hapus gunanya memberi tahu perangkat lain bahwa sebuah merek
+/// dibuang. Kalau barisnya sendiri sudah lenyap dari server — dibersihkan
+/// lewat Admin UI, misalnya — penanda itu tidak lagi punya lawan bicara.
+/// Menahannya justru membuatnya diunggah ulang tiap sinkronisasi, sehingga
+/// pembersihan di server seolah membatalkan dirinya sendiri.
+///
+/// Merek aktif tidak pernah dibuang di sini: kalau server tidak punya, justru
+/// perangkat inilah yang harus mengirimkannya.
+List<Merek> buangNisanYatim(List<Merek> daftar, Set<String> adaDiServer) =>
+    daftar
+        .where((m) => !m.dihapus || adaDiServer.contains(m.nama))
+        .toList();
+
 String kunciTanggal(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
@@ -586,7 +601,10 @@ class AppState extends ChangeNotifier {
     try {
       final dariServer = await _sync.tarikMerek(serverUrl);
       final diServer = {for (final m in dariServer) m.nama: m};
-      final gabungan = gabungMerek(brands, dariServer);
+      final gabungan = buangNisanYatim(
+        gabungMerek(brands, dariServer),
+        diServer.keys.toSet(),
+      );
 
       var terkirim = 0;
       for (final m in gabungan) {
