@@ -126,10 +126,11 @@ Daftar merek juga dipakai bersama: menambah, mengubah, atau menghapus merek di
 satu HP ikut berlaku di HP lain. Ditarik saat app dibuka dan saat tab
 **Pengaturan** dibuka.
 
-Penghapusan memakai **hapus lunak** — barisnya tetap tersimpan dengan penanda
-`dihapus`. Tanpa itu, HP lain yang masih menyimpan merek lama akan
-mengirimkannya kembali dan penghapusan batal dengan sendirinya. Kalau dua HP
-mengubah merek yang sama, perubahan dengan waktu paling baru yang menang.
+Menghapus merek benar-benar menghapus barisnya di server, dan HP lain ikut
+membuangnya pada sinkronisasi berikutnya. Merek yang **belum pernah terkirim**
+tidak ikut dibuang — ketidakhadirannya di server berarti belum sempat
+diunggah, bukan sudah dihapus. Kalau dua HP mengubah merek yang sama,
+perubahan dengan waktu paling baru yang menang.
 
 > Butuh koleksi `merek` di PocketBase — import dari `pb_schema.json`.
 

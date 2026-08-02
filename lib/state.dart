@@ -122,14 +122,19 @@ List<Tiket> buangTiketTerhapus(
 /// Gabungkan daftar merek dua perangkat.
 ///
 /// Kuncinya `nama`. Kalau merek yang sama ada di dua tempat, yang `diubah`-nya
-/// paling baru menang — termasuk kalau yang menang itu penandaan hapus.
-/// Hasil tetap memuat baris berstatus dihapus supaya penghapusan ikut terkirim
-/// ke perangkat berikutnya; penyaringan untuk tampilan dilakukan terpisah.
+/// paling baru menang. Baris yang datang dari server ditandai sudah terkirim,
+/// karena itulah yang membedakan "belum diunggah" dari "sudah dihapus di sana".
 List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
   final hasil = <String, Merek>{for (final m in lokal) m.nama: m};
   for (final s in server) {
     final ada = hasil[s.nama];
-    if (ada == null || s.diubah.isAfter(ada.diubah)) hasil[s.nama] = s;
+    // Apa pun yang datang dari server, menurut definisi sudah ada di server.
+    final dariServer = s.copyWith(terkirim: true);
+    if (ada == null || s.diubah.isAfter(ada.diubah)) {
+      hasil[s.nama] = dariServer;
+    } else {
+      hasil[s.nama] = ada.copyWith(terkirim: true);
+    }
   }
   final urut = hasil.values.toList()
     ..sort((a, b) => a.nama.compareTo(b.nama));
@@ -159,12 +164,14 @@ typedef HasilSelaras = ({List<Merek> daftar, List<Merek> kirim});
 ///    mencampurkan contoh pabrik ke dalamnya.
 HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
   if (server.isNotEmpty && lokal.every(merekBawaan)) {
-    final daftar = [...server]..sort((a, b) => a.nama.compareTo(b.nama));
+    final daftar = [
+      for (final m in server) m.copyWith(terkirim: true),
+    ]..sort((a, b) => a.nama.compareTo(b.nama));
     return (daftar: daftar, kirim: const []);
   }
 
   final diServer = {for (final m in server) m.nama: m};
-  final daftar = buangNisanYatim(
+  final daftar = buangMerekTerhapus(
     gabungMerek(lokal, server),
     diServer.keys.toSet(),
   );
@@ -176,19 +183,17 @@ HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
   return (daftar: daftar, kirim: kirim);
 }
 
-/// Buang penanda hapus yang barisnya sudah tidak ada di server.
+/// Buang merek yang pernah terkirim tapi sudah tidak ada lagi di server.
 ///
-/// Penanda hapus gunanya memberi tahu perangkat lain bahwa sebuah merek
-/// dibuang. Kalau barisnya sendiri sudah lenyap dari server — dibersihkan
-/// lewat Admin UI, misalnya — penanda itu tidak lagi punya lawan bicara.
-/// Menahannya justru membuatnya diunggah ulang tiap sinkronisasi, sehingga
-/// pembersihan di server seolah membatalkan dirinya sendiri.
+/// Inilah yang membuat penghapusan sungguhan bisa menular: begitu barisnya
+/// hilang di server — dihapus dari HP lain atau lewat Admin UI — perangkat ini
+/// ikut membuangnya.
 ///
-/// Merek aktif tidak pernah dibuang di sini: kalau server tidak punya, justru
-/// perangkat inilah yang harus mengirimkannya.
-List<Merek> buangNisanYatim(List<Merek> daftar, Set<String> adaDiServer) =>
+/// Merek yang **belum pernah terkirim** tidak disentuh: ketidakhadirannya di
+/// server berarti belum sempat diunggah, bukan sudah dihapus.
+List<Merek> buangMerekTerhapus(List<Merek> daftar, Set<String> adaDiServer) =>
     daftar
-        .where((m) => !m.dihapus || adaDiServer.contains(m.nama))
+        .where((m) => !m.terkirim || adaDiServer.contains(m.nama))
         .toList();
 
 String kunciTanggal(DateTime d) =>
@@ -263,8 +268,9 @@ class AppState extends ChangeNotifier {
   /// belum tersimpan di mana pun selain HP ini.
   int get queue => riwayat.where((t) => belumTerkirim(t.status)).length;
 
-  /// Merek yang tampil di layar — tanpa yang sudah dihapus.
-  List<Merek> get merekAktif => brands.where((m) => !m.dihapus).toList();
+  /// Merek yang tampil di layar. Tidak ada lagi baris tersembunyi — penghapusan
+  /// sekarang sungguhan, jadi daftar ini sama dengan isi .
+  List<Merek> get merekAktif => brands;
 
   /// Tiket yang ditolak server. Dipakai untuk peringatan di Pengaturan.
   int get jumlahDitolak =>
@@ -568,50 +574,49 @@ class AppState extends ChangeNotifier {
       tampilToast('Nama merek kosong');
       return;
     }
-    final bentrok = brands.any((b) => b.nama == n && !b.dihapus && b.nama != namaLama);
-    if (bentrok) {
+    if (brands.any((b) => b.nama == n && b.nama != namaLama)) {
       tampilToast('$n sudah ada');
       return;
     }
     final sekarang = DateTime.now();
+    final gantiNama = namaLama != null && namaLama != n;
+
     ubah(() {
       final l = List.of(brands);
-      // Ganti nama = hapus yang lama (tersinkron) lalu buat yang baru.
-      if (namaLama != null && namaLama != n) {
-        _tandai(l, namaLama, dihapus: true, waktu: sekarang);
-      }
+      if (gantiNama) l.removeWhere((b) => b.nama == namaLama);
       final i = l.indexWhere((b) => b.nama == n);
       final baru = Merek(n, kategori, diubah: sekarang);
       if (i >= 0) {
-        l[i] = baru; // termasuk menghidupkan lagi merek yang pernah dihapus
+        l[i] = baru;
       } else {
         l.add(baru);
       }
       brands = l;
     }, simpan: true);
+
     tampilToast(namaLama == null ? '$n ditambahkan' : '$n disimpan');
+    // Ganti nama = baris lama benar-benar dihapus di server, bukan disisakan.
+    if (gantiNama) unawaited(_hapusDiServer(namaLama));
     unawaited(selarasMerek());
   }
 
-  /// Hapus lunak — barisnya tetap ada supaya perangkat lain ikut menghapusnya.
+  /// Hapus sungguhan: barisnya lenyap dari HP ini dan dari server.
   void hapusMerek(String nama) {
-    ubah(() {
-      final l = List.of(brands);
-      _tandai(l, nama, dihapus: true, waktu: DateTime.now());
-      brands = l;
-    }, simpan: true);
+    ubah(() => brands = brands.where((b) => b.nama != nama).toList(),
+        simpan: true);
     tampilToast('$nama dihapus');
-    unawaited(selarasMerek());
+    unawaited(_hapusDiServer(nama));
   }
 
-  static void _tandai(
-    List<Merek> l,
-    String nama, {
-    required bool dihapus,
-    required DateTime waktu,
-  }) {
-    final i = l.indexWhere((b) => b.nama == nama);
-    if (i >= 0) l[i] = l[i].copyWith(dihapus: dihapus, diubah: waktu);
+  /// Hapus di server. Gagal di sini berarti merek bisa muncul lagi saat sync
+  /// berikutnya, jadi kegagalannya dilaporkan — bukan ditelan diam-diam.
+  Future<void> _hapusDiServer(String nama) async {
+    if (!online) return;
+    try {
+      await _sync.hapusMerek(serverUrl, nama);
+    } on Object catch (e) {
+      tampilToast('Gagal hapus $nama di server: $e');
+    }
   }
 
   // ---------- sync ----------

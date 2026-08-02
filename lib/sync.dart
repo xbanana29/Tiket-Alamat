@@ -9,6 +9,7 @@ import 'models.dart';
 ///
 /// ponytail: push langsung + tarik per tanggal, tanpa background worker dan
 /// tanpa realtime subscribe. Tambahkan kalau ternyata perlu update seketika.
+
 /// True bila galat ini tidak akan hilang hanya dengan mencoba lagi: server
 /// sudah menerima requestnya dan menolak **isinya** (validasi field, enum di
 /// luar daftar, unique bentrok).
@@ -79,11 +80,7 @@ class Sync {
 
   // ---------------- merek ----------------
 
-  /// Ambil seluruh daftar merek dari server, termasuk yang berstatus dihapus.
-  ///
-  /// Yang dihapus tetap ikut ditarik: tanpa penanda itu, perangkat yang masih
-  /// menyimpan merek lama akan mengirimkannya kembali dan penghapusan batal
-  /// dengan sendirinya.
+  /// Ambil seluruh daftar merek dari server.
   Future<List<Merek>> tarikMerek(String url) async {
     if (url.trim().isEmpty) throw Exception('URL server kosong');
     final rekaman = await _client(url).collection('merek').getFullList();
@@ -92,10 +89,26 @@ class Sync {
       return Merek(
         d['nama'] as String,
         d['kategori'] as String,
-        dihapus: d['dihapus'] as bool? ?? false,
         diubah: _waktuServer(d['diubah']),
       );
     }).toList();
+  }
+
+  /// Hapus merek dari server, sungguhan — barisnya lenyap, bukan ditandai.
+  ///
+  /// Butuh `deleteRule` koleksi `merek` terbuka; kalau masih terkunci
+  /// superuser, server menjawab 403 dan galatnya diteruskan ke pemanggil
+  /// supaya tidak gagal diam-diam.
+  Future<void> hapusMerek(String url, String nama) async {
+    if (url.trim().isEmpty) throw Exception('URL server kosong');
+    final coll = _client(url).collection('merek');
+    try {
+      final ada = await coll.getFirstListItem('nama="$nama"');
+      await coll.delete(ada.id);
+    } on ClientException catch (e) {
+      // Sudah tidak ada di server = tujuan tercapai.
+      if (e.statusCode != 404) rethrow;
+    }
   }
 
   /// Simpan satu merek (buat bila belum ada, perbarui bila sudah).
@@ -104,7 +117,6 @@ class Sync {
     final body = {
       'nama': m.nama,
       'kategori': m.kategori,
-      'dihapus': m.dihapus,
       'diubah': m.diubah.toUtc().toIso8601String(),
     };
     final coll = _client(url).collection('merek');

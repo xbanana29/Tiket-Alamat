@@ -29,14 +29,13 @@
     "viewRule": "",
     "createRule": "",
     "updateRule": "",
-    "deleteRule": null,
+    "deleteRule": "",
     "indexes": [
       "CREATE UNIQUE INDEX `idx_merek_nama` ON `merek` (`nama`)"
     ],
     "fields": [
       { "name": "nama", "type": "text", "required": true },
       { "name": "kategori", "type": "text", "required": true },
-      { "name": "dihapus", "type": "bool" },
       { "name": "diubah", "type": "date", "required": true }
     ]
   }

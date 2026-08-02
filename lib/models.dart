@@ -131,45 +131,55 @@ class Merek {
   final String nama; // sekaligus kunci identitas antar-perangkat
   final String kategori; // 'Terigu' | 'Gula'
 
-  /// Hapus lunak. Kalau merek benar-benar dibuang dari daftar, perangkat lain
-  /// akan mengirimkannya kembali pada sinkronisasi berikutnya — penghapusan
-  /// harus ikut tersinkron, bukan sekadar hilang secara lokal.
-  final bool dihapus;
-
   /// Kapan baris ini terakhir diubah. Dipakai sebagai penentu saat dua
   /// perangkat mengubah merek yang sama: yang paling baru menang.
   final DateTime diubah;
 
+  /// Merek ini pernah sampai ke server — entah dikirim dari sini atau ditarik
+  /// dari sana. **Hanya disimpan lokal, tidak dikirim ke server.**
+  ///
+  /// Ini yang memungkinkan penghapusan sungguhan. Kalau sebuah merek tidak ada
+  /// di server, penyebabnya bisa dua hal yang berlawanan:
+  /// - belum pernah terkirim (dibuat saat luring) → harus dikirim
+  /// - pernah terkirim lalu dihapus di sana → harus ikut dibuang di sini
+  ///
+  /// Tanpa penanda ini keduanya tidak bisa dibedakan, dan itulah alasan versi
+  /// sebelumnya memakai hapus lunak.
+  final bool terkirim;
+
   Merek(
     this.nama,
     this.kategori, {
-    this.dihapus = false,
     DateTime? diubah,
+    this.terkirim = false,
   }) : diubah = diubah ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-  Merek copyWith({String? kategori, bool? dihapus, DateTime? diubah}) => Merek(
+  Merek copyWith({String? kategori, DateTime? diubah, bool? terkirim}) => Merek(
     nama,
     kategori ?? this.kategori,
-    dihapus: dihapus ?? this.dihapus,
     diubah: diubah ?? this.diubah,
+    terkirim: terkirim ?? this.terkirim,
   );
 
+  /// Untuk disimpan ke disk — memuat `terkirim`.
   Map<String, dynamic> toJson() => {
     'nama': nama,
     'kategori': kategori,
-    'dihapus': dihapus,
     'diubah': diubah.toIso8601String(),
+    'terkirim': terkirim,
   };
 
   factory Merek.fromJson(Map<String, dynamic> j) => Merek(
     j['nama'] as String,
     j['kategori'] as String,
-    dihapus: j['dihapus'] as bool? ?? false,
     // Data lama tidak punya `diubah`; anggap paling tua supaya kalah dari
     // versi mana pun yang datang dari server.
     diubah: j['diubah'] == null
         ? DateTime.fromMillisecondsSinceEpoch(0)
         : DateTime.parse(j['diubah'] as String),
+    // Data lama yang pernah dihapus lunak diperlakukan seperti sudah terkirim
+    // supaya ikut dibersihkan pada sinkronisasi berikutnya.
+    terkirim: j['terkirim'] as bool? ?? j['dihapus'] as bool? ?? false,
   );
 }
 

@@ -445,57 +445,50 @@ void main() {
       expect(h.single.kategori, 'Gula');
     });
 
-    test('penghapusan ikut tersinkron, bukan dihidupkan lagi', () {
-      // Perangkat lain menghapus; perangkat ini masih menyimpannya.
+    test('baris dari server ditandai sudah terkirim', () {
+      // Penanda inilah yang membedakan "belum diunggah" dari
+      // "sudah dihapus di server".
+      final h = gabungMerek(const [], [Merek('A', 'Terigu', diubah: lama)]);
+      expect(h.single.terkirim, isTrue);
+    });
+
+    test('lokal yang menang tetap ditandai terkirim bila ada di server', () {
       final h = gabungMerek(
+        [Merek('A', 'Gula', diubah: baru)],
         [Merek('A', 'Terigu', diubah: lama)],
-        [Merek('A', 'Terigu', dihapus: true, diubah: baru)],
       );
-      expect(h.single.dihapus, isTrue);
-    });
-
-    test('merek dihapus tetap ada di daftar agar bisa diteruskan', () {
-      final h = gabungMerek(
-        [Merek('A', 'Terigu', dihapus: true, diubah: baru)],
-        const [],
-      );
-      expect(h.length, 1);
-    });
-
-    test('menambah ulang nama yang pernah dihapus menghidupkannya', () {
-      final h = gabungMerek(
-        [Merek('A', 'Terigu', diubah: baru)], // ditambah lagi di sini
-        [Merek('A', 'Terigu', dihapus: true, diubah: lama)],
-      );
-      expect(h.single.dihapus, isFalse);
+      expect(h.single.kategori, 'Gula');
+      expect(h.single.terkirim, isTrue);
     });
   });
 
-  group('buangNisanYatim', () {
+  group('buangMerekTerhapus', () {
     final t = DateTime(2026, 8, 2);
 
-    test('nisan yang barisnya sudah lenyap di server ikut dibuang', () {
-      // Kalau ditahan, ia akan diunggah ulang dan pembersihan di Admin UI
-      // seolah membatalkan dirinya sendiri.
-      final h = buangNisanYatim(
-        [Merek('A', 'Terigu', dihapus: true, diubah: t)],
+    test('merek yang pernah terkirim lalu lenyap di server ikut dibuang', () {
+      // Ini yang membuat hapus sungguhan bisa menular antar HP.
+      final h = buangMerekTerhapus(
+        [Merek('A', 'Terigu', diubah: t, terkirim: true)],
         <String>{},
       );
       expect(h, isEmpty);
     });
 
-    test('nisan tetap disimpan selama barisnya masih ada di server', () {
-      final h = buangNisanYatim(
-        [Merek('A', 'Terigu', dihapus: true, diubah: t)],
-        {'A'},
+    test('merek yang belum pernah terkirim tidak disentuh', () {
+      // Belum sempat diunggah, bukan sudah dihapus.
+      final h = buangMerekTerhapus(
+        [Merek('A', 'Terigu', diubah: t)],
+        <String>{},
       );
-      expect(h.single.dihapus, isTrue);
+      expect(h.single.nama, 'A');
     });
 
-    test('merek aktif tidak pernah dibuang walau server belum punya', () {
-      // Justru perangkat inilah yang harus mengirimkannya.
-      final h = buangNisanYatim([Merek('A', 'Terigu', diubah: t)], <String>{});
-      expect(h.single.nama, 'A');
+    test('yang masih ada di server tetap disimpan', () {
+      final h = buangMerekTerhapus(
+        [Merek('A', 'Terigu', diubah: t, terkirim: true)],
+        {'A'},
+      );
+      expect(h.length, 1);
     });
   });
 
