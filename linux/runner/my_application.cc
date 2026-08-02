@@ -52,7 +52,9 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Tiket Alamat");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  // Seukuran ponsel: isi aplikasi dibatasi 430 px, jendela lebar hanya
+  // menyisakan latar kosong di kiri-kanan.
+  gtk_window_set_default_size(window, 430, 900);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

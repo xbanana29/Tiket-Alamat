@@ -20,6 +20,44 @@ void main() {
   });
 }
 
+/// Batasi lebar isi ke ukuran ponsel dan taruh di tengah.
+///
+/// Rancangannya 390×844. Di jendela desktop yang bisa selebar apa pun, numpad
+/// dan nota ikut melar sampai tidak proporsional. Diletakkan di `builder`
+/// MaterialApp supaya dialog dan sheet — yang muncul di dalam Navigator — ikut
+/// terbatas, bukan hanya isi halaman.
+///
+/// Di ponsel batas ini tidak pernah tercapai, jadi tampilannya tidak berubah.
+class _BingkaiPonsel extends StatelessWidget {
+  final Widget child;
+  const _BingkaiPonsel({required this.child});
+
+  static const _lebarMaksimum = 430.0;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width <= _lebarMaksimum) return child;
+    return ColoredBox(
+      // Latar di kiri-kanan dibuat lebih gelap/terang dari bg supaya panelnya
+      // terbaca sebagai satu bidang, bukan tampilan yang gagal melebar.
+      color: neutral200,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _lebarMaksimum),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.symmetric(
+                vertical: BorderSide(color: divider),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class TiketAlamatApp extends StatefulWidget {
   final AppState state;
   const TiketAlamatApp({super.key, required this.state});
@@ -86,7 +124,7 @@ class _TiketAlamatAppState extends State<TiketAlamatApp>
                     );
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: overlay,
-                child: child ?? const SizedBox.shrink(),
+                child: _BingkaiPonsel(child: child ?? const SizedBox.shrink()),
               );
             },
             home: const Shell(),

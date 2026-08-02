@@ -26,7 +26,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
+  // Seukuran ponsel: isi aplikasi dibatasi 430 px, jendela lebar hanya
+  // menyisakan latar kosong di kiri-kanan.
+  Win32Window::Size size(430, 900);
   if (!window.Create(L"Tiket Alamat", origin, size)) {
     return EXIT_FAILURE;
   }
