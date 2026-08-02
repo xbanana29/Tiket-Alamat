@@ -498,12 +498,18 @@ class _Laporan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppScope.of(context);
     final f = fs(context);
     final rekap = rekapMerek(tiket);
     final totalSak = rekap.fold(0, (a, b) => a + b.value);
     final totalJerigen = tiket
         .where((t) => t.isMinyak)
         .fold(0, (a, b) => a + b.jerigen);
+
+    // Ikut filter di atasnya: saat Terigu/Gula dipilih, angka minyak selalu 0
+    // dan hanya jadi gangguan — begitu pula sebaliknya.
+    final tampilSak = s.histFilter != 'minyak';
+    final tampilMinyak = s.histFilter != 'sak';
 
     return ListView(
       children: [
@@ -514,9 +520,10 @@ class _Laporan extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _Stat('Total sak', '$totalSak sak', f),
-              const SizedBox(width: 24),
-              _Stat('Total minyak', '$totalJerigen jerigen', f),
+              if (tampilSak) _Stat('Total sak', '$totalSak sak', f),
+              if (tampilSak && tampilMinyak) const SizedBox(width: 24),
+              if (tampilMinyak)
+                _Stat('Total minyak', '$totalJerigen jerigen', f),
             ],
           ),
         ),
