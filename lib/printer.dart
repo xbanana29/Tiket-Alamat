@@ -307,8 +307,13 @@ class Printer {
         styles: const PosStyles(bold: true, align: PosAlign.right),
       ),
     ]));
-    b.addAll(g.text('Tanda terima gudang - tusuk di paku'));
-    b.addAll(g.text('setelah barang keluar'));
+    // Font B (kecil) supaya catatan kaki ini muat 2 baris di 58 mm dan 1 baris
+    // di 80 mm. Dengan font A, "…tusuk di paku" saja sudah 35 karakter di
+    // kertas 32 karakter — melipat jadi tiga baris berantakan.
+    b.addAll(g.text(
+      'Tanda terima gudang - tusuk di paku setelah barang keluar',
+      styles: const PosStyles(fontType: PosFontType.fontB),
+    ));
     b.addAll(_feedLaluPotong(g, paperFeed));
     return b;
   }
