@@ -43,6 +43,14 @@ jobs:
     name: Android APK
     needs: periksa
     runs-on: ubuntu-latest
+    # Konteks `secrets` tidak boleh dipakai di `if` sebuah langkah — GitHub
+    # menolak seluruh berkas workflow. Disalin ke env dulu, karena konteks
+    # `env` boleh.
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -60,17 +68,17 @@ jobs:
       # Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_STORE_PASSWORD,
       #          ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
       - name: Siapkan kunci penandatanganan
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.KEYSTORE_B64 != ''
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/rilis.jks
+          printf '%s' "$KEYSTORE_B64" | base64 -d > android/rilis.jks
           cat > android/key.properties <<EOF
           storeFile=rilis.jks
-          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
           EOF
       - name: Peringatan bila belum ada kunci
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        if: env.KEYSTORE_B64 == ''
         run: |
           echo "::warning::ANDROID_KEYSTORE_BASE64 belum diset. APK ditandatangani kunci debug acak, jadi TIDAK bisa memperbarui versi yang sudah terpasang."
       - run: flutter build apk --release --build-name=${{ needs.periksa.outputs.versi }} --build-number=${{ github.run_number }}
