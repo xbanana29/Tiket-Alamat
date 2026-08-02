@@ -254,16 +254,23 @@ class _UtamaState extends State<_Utama> {
               ),
             ),
             if (s.jumlahDitolak > 0) const _TiketDitolak(),
+            // Satu tombol dua arah: kirim antrian + tarik tiket & merek dari
+            // perangkat lain. Sama dengan pil SYNC di header.
             TombolAksi(
-              s.queue > 0 ? 'Unggah sekarang (${s.queue})' : 'Semua tersinkron',
-              onTap: s.unggahAntrian,
+              s.sedangSync
+                  ? 'Menyinkronkan…'
+                  : (s.queue > 0
+                      ? 'Sinkronkan sekarang (${s.queue} antre)'
+                      : 'Sinkronkan sekarang'),
+              onTap: s.syncSekarang,
               warna: s.queue > 0 ? accent : neutral200,
-              teks: s.queue > 0 ? Colors.white : neutral700,
+              teks: s.queue > 0 ? Colors.white : ink,
             ),
             const SizedBox(height: 8),
             Text(
-              'Tiket tetap tercetak saat luring. Data terkirim sendiri '
-              'begitu internet tersedia.',
+              'Mengirim tiket yang mengantre sekaligus mengambil tiket dan '
+              'merek dari HP lain. Tiket tetap tercetak saat luring dan '
+              'terkirim sendiri begitu internet tersedia.',
               style: TextStyle(
                 fontSize: f * .72,
                 color: neutral600,

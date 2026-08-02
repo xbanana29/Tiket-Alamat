@@ -114,34 +114,54 @@ class _Header extends StatelessWidget {
                   style: heading(f * 1.15).copyWith(letterSpacing: -f * .01),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: neutral100,
-                  border: Border.all(color: divider),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: s.online ? hijau : accent,
-                        shape: BoxShape.rectangle,
+              // Pil status sekaligus tombol sync — bisa dijangkau dari tab mana
+              // pun tanpa menambah elemen baru di header yang sudah padat.
+              Tap(
+                onTap: s.syncSekarang,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: neutral100,
+                    border: Border.all(color: divider),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (s.sedangSync)
+                        SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: ink,
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: s.online ? hijau : accent,
+                            shape: BoxShape.rectangle,
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      Text(
+                        s.sedangSync
+                            ? 'SYNC…'
+                            : (s.online ? 'SYNC' : 'LURING'),
+                        style: TextStyle(
+                          fontSize: f * .68,
+                          letterSpacing: f * .68 * .06,
+                          fontWeight: FontWeight.w700,
+                          color: ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      s.online ? 'DARING' : 'LURING',
-                      style: TextStyle(
-                        fontSize: f * .68,
-                        letterSpacing: f * .68 * .06,
-                        fontWeight: FontWeight.w700,
-                        color: ink,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               if (s.queue > 0) ...[

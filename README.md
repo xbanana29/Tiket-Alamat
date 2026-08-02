@@ -122,8 +122,16 @@ mengubah merek yang sama, perubahan dengan waktu paling baru yang menang.
 ### Tiket muncul di semua HP
 
 Sinkronisasinya dua arah. Tiket dari perangkat lain ditarik otomatis saat:
-app dibuka, tab **Daftar** dibuka, tanggal digeser, dan setelah **Unggah
-sekarang** — petugas tidak perlu menekan apa pun.
+app dibuka, tab **Daftar** dibuka, tanggal digeser, dan setelah sinkronisasi
+manual — petugas tidak perlu menekan apa pun.
+
+**Tombol SYNC** di pojok kanan atas menarik semuanya sekaligus (kirim antrian +
+ambil tiket + selaraskan merek), dari tab mana pun. Tombol yang sama juga ada
+di **Pengaturan → Server & antrian**.
+
+Tidak ada realtime: perubahan di HP lain baru terlihat setelah salah satu
+pemicu di atas. Kalau petugas tahu ada perubahan dan tidak mau menunggu,
+tekan **SYNC**.
 
 Yang ditarik hanya tiket **untuk tanggal yang sedang dilihat**, bukan seluruh
 riwayat, supaya tidak makin berat tiap tahun.

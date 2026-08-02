@@ -535,6 +535,43 @@ class AppState extends ChangeNotifier {
     unawaited(tarikTiket());
   }
 
+  bool _sedangSync = false;
+  bool get sedangSync => _sedangSync;
+
+  /// Satu tombol untuk semuanya: kirim tiket yang mengantre, tarik tiket
+  /// perangkat lain untuk tanggal yang sedang dilihat, lalu selaraskan merek.
+  ///
+  /// Ini jalan keluar saat petugas tahu ada perubahan di HP lain tapi tidak
+  /// mau menunggu pemicu otomatis (buka tab, geser tanggal, buka app).
+  Future<void> syncSekarang() async {
+    if (_sedangSync) return;
+    if (!online) {
+      tampilToast('Luring — sambungkan internet dulu');
+      return;
+    }
+    ubah(() => _sedangSync = true);
+    final sebelumTiket = riwayat.length;
+    final sebelumMerek = merekAktif.length;
+    try {
+      await unggahAntrian(diam: true);
+      await tarikTiket(diam: true);
+      await selarasMerek(diam: true);
+
+      final tiketBaru = riwayat.length - sebelumTiket;
+      final merekBaru = merekAktif.length - sebelumMerek;
+      final bagian = <String>[
+        if (tiketBaru > 0) '$tiketBaru tiket baru',
+        if (merekBaru != 0) '${merekBaru.abs()} merek berubah',
+        if (queue > 0) '$queue masih antre',
+      ];
+      tampilToast(bagian.isEmpty ? 'Sudah terbaru' : bagian.join(' · '));
+    } on Object catch (e) {
+      tampilToast('Sync gagal: $e');
+    } finally {
+      ubah(() => _sedangSync = false);
+    }
+  }
+
   /// Selaraskan daftar merek dengan server: tarik dulu, lalu kirim hanya baris
   /// yang versinya lebih baru di sini (atau belum ada di sana).
   ///
