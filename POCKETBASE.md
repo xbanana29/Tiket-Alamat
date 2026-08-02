@@ -214,12 +214,54 @@ pb.rejekiamerta.com {
 
 Admin UI: `https://pb.rejekiamerta.com/_/`
 
-### 4. Import schema
+### 4. Buat koleksi
 
-1. Login Admin UI  
-2. **Settings → Import collections**  
-3. Paste / upload isi `pb_schema.json`  
-4. Pastikan koleksi **`tiket`** muncul dengan unique index `tiket_id`
+> ⚠️ `pb_schema.json` adalah **rujukan bentuk**, bukan payload impor siap pakai.
+> Menempelkannya ke **Import collections** ditolak dengan
+> *"Invalid collections configuration"* — PocketBase 0.23+ menuntut field
+> sistem (`id`, `created`, `updated`) ikut dideklarasikan.
+>
+> Selain itu opsi **"Delete missing collections"** di layar impor bisa
+> **menghapus koleksi lain beserta seluruh isinya**. Untuk menambah satu
+> koleksi, impor bukan cara yang sepadan risikonya.
+
+**Cara yang dianjurkan — buat manual lewat Admin UI.**
+
+Koleksi **`tiket`**:
+
+| Field | Tipe | Setelan |
+|---|---|---|
+| `tiket_id` | Text | required |
+| `pelanggan` | Text | required |
+| `waktu` | Date | required |
+| `petugas` | Text | required |
+| `mode` | Select | required, max 1, values `sak`, `minyak` |
+| `items` | JSON | max 20000 |
+| `jerigen` | Number | 0–99 |
+| `revisi` | JSON | max 50000 |
+
+Index: `CREATE UNIQUE INDEX \`idx_tiket_id\` ON \`tiket\` (\`tiket_id\`)`
+
+Koleksi **`merek`**:
+
+| Field | Tipe | Setelan |
+|---|---|---|
+| `nama` | Text | required |
+| `kategori` | Select | required, max 1, values `Terigu`, `Gula` |
+| `dihapus` | Bool | — |
+| `diubah` | Date | required |
+
+Index: `CREATE UNIQUE INDEX \`idx_merek_nama\` ON \`merek\` (\`nama\`)`
+
+Index unik itu **bukan opsional**: tanpanya dua perangkat yang menambah baris
+bersamaan membuat duplikat, dan penggabungan di klien jadi tidak menentu.
+
+API Rules kedua koleksi: `list`/`view`/`create`/`update` dikosongkan (publik),
+`delete` dibiarkan terkunci.
+
+**Kalau tetap ingin lewat JSON:** **Settings → Export collections** dulu, lalu
+tiru persis bentuk keluaran itu untuk koleksi baru — di situ terlihat field
+sistem apa saja yang harus ikut disertakan pada versi PocketBase yang dipakai.
 
 Field wajib (harus cocok dengan `sync.dart`):
 

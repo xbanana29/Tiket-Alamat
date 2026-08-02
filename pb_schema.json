@@ -1,5 +1,6 @@
 [
   {
+    "_catatan": "RUJUKAN BENTUK KOLEKSI, BUKAN PAYLOAD IMPOR SIAP PAKAI. Menempelkan berkas ini ke Settings -> Import collections akan ditolak 'Invalid collections configuration' karena PocketBase 0.23+ menuntut field sistem (id/created/updated) ikut dideklarasikan. Cara yang dianjurkan: buat koleksi manual lewat Admin UI mengikuti daftar field di bawah (lihat POCKETBASE.md), atau Export collections dulu lalu tiru persis bentuk keluarannya.",
     "name": "tiket",
     "type": "base",
     "listRule": "",
