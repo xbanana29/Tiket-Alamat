@@ -94,6 +94,31 @@ List<Tiket> gabungTiket(List<Tiket> lokal, List<Tiket> server) {
   return urut;
 }
 
+/// Buang tiket yang sudah tidak ada lagi di server.
+///
+/// `gabungTiket` hanya menambahkan dari server, tidak pernah mengurangi — jadi
+/// tiket yang dihapus lewat Admin UI tetap tertinggal di HP selamanya:
+/// statusnya sudah `Terkirim` sehingga tidak pernah diunggah ulang, dan tidak
+/// ada apa pun yang memberitahu HP bahwa barisnya sudah lenyap.
+///
+/// Dua pagar pengaman:
+/// - hanya untuk [tanggal] yang baru saja ditarik; tanggal lain tidak ikut
+///   dinilai karena tarikan memang cuma satu hari
+/// - tiket yang **belum terkirim** tidak pernah dibuang — satu-satunya salinan
+///   tiket itu ada di HP ini
+List<Tiket> buangTiketTerhapus(
+  List<Tiket> lokal,
+  List<Tiket> server,
+  String tanggal,
+) {
+  final adaDiServer = {for (final t in server) t.id};
+  return lokal.where((t) {
+    if (t.tanggalKunci != tanggal) return true;
+    if (belumTerkirim(t.status)) return true;
+    return adaDiServer.contains(t.id);
+  }).toList();
+}
+
 /// Gabungkan daftar merek dua perangkat.
 ///
 /// Kuncinya `nama`. Kalau merek yang sama ada di dua tempat, yang `diubah`-nya
@@ -695,10 +720,21 @@ class AppState extends ChangeNotifier {
       if (kunciTanggal(tanggalDiminta) != kunciTanggal(tanggal)) return;
       final punyaLokal = riwayat.map((t) => t.id).toSet();
       final baru = dariServer.where((t) => !punyaLokal.contains(t.id)).length;
-      riwayat = gabungTiket(riwayat, dariServer);
+      final sebelum = riwayat.length;
+      riwayat = buangTiketTerhapus(
+        gabungTiket(riwayat, dariServer),
+        dariServer,
+        kunciTanggal(tanggalDiminta),
+      );
+      final dibuang = sebelum + baru - riwayat.length;
       _simpan();
       if (!diam) {
-        tampilToast(baru > 0 ? '$baru tiket baru dari server' : 'Sudah terbaru');
+        tampilToast(switch ((baru, dibuang)) {
+          (0, 0) => 'Sudah terbaru',
+          (final b, 0) => '$b tiket baru dari server',
+          (0, final d) => '$d tiket dihapus di server',
+          (final b, final d) => '$b baru · $d dihapus',
+        });
       }
     } on Object catch (e) {
       if (!diam) tampilToast('Gagal ambil dari server: $e');

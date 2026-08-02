@@ -377,6 +377,46 @@ void main() {
     });
   });
 
+  group('buangTiketTerhapus', () {
+    Tiket t(String id, {String status = statusTerkirim, int hari = 2}) => Tiket(
+      id: id,
+      pelanggan: 'TOKO $id',
+      waktu: DateTime(2026, 8, hari, 10),
+      petugas: 'Rudi',
+      mode: 'sak',
+      items: const [Item('A', 1)],
+      status: status,
+    );
+
+    test('tiket yang lenyap dari server ikut hilang di HP', () {
+      // gabungTiket hanya menambah; tanpa ini tiket yang dihapus lewat Admin UI
+      // tertinggal di HP selamanya.
+      final h = buangTiketTerhapus([t('a'), t('b')], [t('a')], '2026-08-02');
+      expect(h.map((e) => e.id), ['a']);
+    });
+
+    test('tiket yang belum terkirim tidak pernah dibuang', () {
+      // Satu-satunya salinan tiket itu ada di HP ini.
+      final h = buangTiketTerhapus(
+        [t('a', status: statusAntri), t('b', status: statusDitolak)],
+        const [],
+        '2026-08-02',
+      );
+      expect(h.map((e) => e.id), ['a', 'b']);
+    });
+
+    test('tanggal lain tidak ikut dinilai', () {
+      // Tarikan hanya satu hari; tiket hari lain belum tentu ada di hasil.
+      final h = buangTiketTerhapus([t('a', hari: 1)], const [], '2026-08-02');
+      expect(h.map((e) => e.id), ['a']);
+    });
+
+    test('server kosong membersihkan seluruh tanggal itu', () {
+      final h = buangTiketTerhapus([t('a'), t('b')], const [], '2026-08-02');
+      expect(h, isEmpty);
+    });
+  });
+
   group('gabungMerek', () {
     final lama = DateTime(2026, 8, 1, 10);
     final baru = DateTime(2026, 8, 1, 12);
