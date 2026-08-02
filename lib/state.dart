@@ -111,6 +111,46 @@ List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
   return urut;
 }
 
+/// Merek bawaan pabrik yang belum pernah disentuh petugas.
+///
+/// Seed dibuat tanpa `diubah`, jadi stempelnya tetap di titik nol. Begitu
+/// ditambah/diubah/dihapus lewat UI, stempelnya terisi waktu nyata.
+bool merekBawaan(Merek m) =>
+    m.diubah.millisecondsSinceEpoch == 0;
+
+/// Hasil penyelarasan: daftar yang dipakai perangkat, dan baris yang perlu
+/// dikirim ke server.
+typedef HasilSelaras = ({List<Merek> daftar, List<Merek> kirim});
+
+/// Tentukan daftar merek akhir dan apa yang perlu diunggah.
+///
+/// Dua aturan yang mencegah daftar gudang tercemar:
+///
+/// 1. **Merek bawaan tidak pernah dikirim.** Kalau dikirim, HP yang baru
+///    dipasang ulang akan menyumbangkan 20 merek contoh ke daftar bersama —
+///    dan semua HP lain ikut kebanjiran.
+/// 2. **HP yang isinya masih bawaan semua mengambil alih daftar server.**
+///    Perangkat baru bergabung ke gudang yang sudah punya daftar, bukan
+///    mencampurkan contoh pabrik ke dalamnya.
+HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
+  if (server.isNotEmpty && lokal.every(merekBawaan)) {
+    final daftar = [...server]..sort((a, b) => a.nama.compareTo(b.nama));
+    return (daftar: daftar, kirim: const []);
+  }
+
+  final diServer = {for (final m in server) m.nama: m};
+  final daftar = buangNisanYatim(
+    gabungMerek(lokal, server),
+    diServer.keys.toSet(),
+  );
+  final kirim = daftar.where((m) {
+    if (merekBawaan(m)) return false;
+    final s = diServer[m.nama];
+    return s == null || m.diubah.isAfter(s.diubah);
+  }).toList();
+  return (daftar: daftar, kirim: kirim);
+}
+
 /// Buang penanda hapus yang barisnya sudah tidak ada di server.
 ///
 /// Penanda hapus gunanya memberi tahu perangkat lain bahwa sebuah merek
@@ -600,24 +640,15 @@ class AppState extends ChangeNotifier {
     if (!online) return;
     try {
       final dariServer = await _sync.tarikMerek(serverUrl);
-      final diServer = {for (final m in dariServer) m.nama: m};
-      final gabungan = buangNisanYatim(
-        gabungMerek(brands, dariServer),
-        diServer.keys.toSet(),
-      );
+      final hasil = selaraskanMerek(brands, dariServer);
 
-      var terkirim = 0;
-      for (final m in gabungan) {
-        final s = diServer[m.nama];
-        if (s == null || m.diubah.isAfter(s.diubah)) {
-          await _sync.pushMerek(serverUrl, m);
-          terkirim++;
-        }
+      for (final m in hasil.kirim) {
+        await _sync.pushMerek(serverUrl, m);
       }
-      ubah(() => brands = gabungan, simpan: true);
+      ubah(() => brands = hasil.daftar, simpan: true);
       if (!diam) {
-        tampilToast(terkirim > 0
-            ? 'Merek tersinkron · $terkirim terkirim'
+        tampilToast(hasil.kirim.isNotEmpty
+            ? 'Merek tersinkron · ${hasil.kirim.length} terkirim'
             : 'Merek sudah terbaru');
       }
     } on Object catch (e) {

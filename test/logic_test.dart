@@ -390,6 +390,47 @@ void main() {
     });
   });
 
+  group('selaraskanMerek', () {
+    final t = DateTime(2026, 8, 2);
+    // Seed dibuat tanpa `diubah` — persis seperti seedMerek.
+    Merek bawaan(String n) => Merek(n, 'Terigu');
+    Merek disentuh(String n) => Merek(n, 'Terigu', diubah: t);
+
+    test('merek bawaan tidak pernah dikirim ke server', () {
+      // Inti bug: HP yang dipasang ulang menyumbang 20 merek contoh ke
+      // daftar bersama, dan semua HP lain ikut kebanjiran.
+      final h = selaraskanMerek([bawaan('CAKRA KEMBAR')], const []);
+      expect(h.kirim, isEmpty);
+    });
+
+    test('HP baru mengambil alih daftar server, bukan mencampur bawaan', () {
+      final h = selaraskanMerek(
+        [bawaan('CAKRA KEMBAR'), bawaan('GULAKU')],
+        [disentuh('GULA PASIR NK')],
+      );
+      expect(h.daftar.map((e) => e.nama), ['GULA PASIR NK']);
+      expect(h.kirim, isEmpty);
+    });
+
+    test('merek buatan petugas tetap dikirim', () {
+      final h = selaraskanMerek([disentuh('MERK BARU')], const []);
+      expect(h.kirim.single.nama, 'MERK BARU');
+    });
+
+    test('bawaan yang sudah diubah petugas ikut terkirim', () {
+      final h = selaraskanMerek(
+        [disentuh('CAKRA KEMBAR'), bawaan('GULAKU')],
+        const [],
+      );
+      expect(h.kirim.map((e) => e.nama), ['CAKRA KEMBAR']);
+    });
+
+    test('tidak mengirim ulang yang versinya sama di server', () {
+      final h = selaraskanMerek([disentuh('A')], [disentuh('A')]);
+      expect(h.kirim, isEmpty);
+    });
+  });
+
   group('persistensi', () {
     test('tiket bolak-balik lewat JSON tanpa kehilangan data', () {
       final t = _tiket(
