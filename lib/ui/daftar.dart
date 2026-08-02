@@ -234,6 +234,13 @@ class _ListTiket extends StatelessWidget {
                         style: _aksi(f, ink)),
                   ),
                   const SizedBox(width: 12),
+                  if (s.bolehHapusTiket) ...[
+                    Tap(
+                      onTap: () => _konfirmasiHapus(context, r),
+                      child: Text('HAPUS', style: _aksi(f, accent700)),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Tap(
                     onTap: () => s.cetakUlang(r),
                     child: Text('CETAK ULANG', style: _aksi(f, accent700)),
@@ -253,6 +260,70 @@ class _ListTiket extends StatelessWidget {
     letterSpacing: f * .7 * .06,
     color: c,
   );
+
+  /// Menghapus tiket tidak bisa dibatalkan dan ikut menghapusnya di HP lain,
+  /// jadi selalu ditanya dulu.
+  void _konfirmasiHapus(BuildContext context, Tiket r) {
+    final s = AppScope.of(context);
+    final f = fs(context);
+    showDialog<void>(
+      context: context,
+      builder: (d) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: ink, width: 2),
+          borderRadius: BorderRadius.zero,
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LabelMikro('Hapus tiket'),
+                  const SizedBox(height: 8),
+                  Text(
+                    r.pelanggan,
+                    style: TextStyle(
+                      fontSize: f * 1.05,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${r.jam} · ${r.barisTeks.join(", ")}',
+                    style: TextStyle(fontSize: f * .78, color: neutral600),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Tiket ini hilang dari HP ini dan dari server, lalu ikut '
+                    'hilang di HP lain saat sync. Tidak bisa dibatalkan.',
+                    style: TextStyle(
+                      fontSize: f * .76,
+                      height: 1.5,
+                      color: neutral700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            FooterDua(
+              kiri: 'Batal',
+              kanan: 'Hapus',
+              onKiri: () => Navigator.pop(d),
+              onKanan: () {
+                Navigator.pop(d);
+                s.hapusTiket(r);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _bukaEdit(BuildContext context, Tiket r) {
     final s = AppScope.of(context);

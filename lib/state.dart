@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show TextEditingController;
 
+import 'brand.dart';
 import 'models.dart';
 import 'printer.dart';
 import 'store.dart';
@@ -542,6 +543,37 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------- edit tiket ----------
+
+  /// Hanya petugas tertentu yang boleh menghapus tiket — lihat
+  /// [kPetugasBolehHapus] soal seberapa kuat pagar ini sebenarnya.
+  bool get bolehHapusTiket =>
+      petugas.trim().toLowerCase() == kPetugasBolehHapus.toLowerCase();
+
+  /// Hapus tiket dari HP ini dan dari server sekaligus.
+  ///
+  /// Perangkat lain ikut membuangnya saat menarik tanggal yang sama, lewat
+  /// [buangTiketTerhapus].
+  Future<void> hapusTiket(Tiket t) async {
+    if (!bolehHapusTiket) {
+      tampilToast('Hanya $kPetugasBolehHapus yang boleh menghapus tiket');
+      return;
+    }
+    final sudahDiServer = !belumTerkirim(t.status);
+    ubah(() => riwayat = riwayat.where((r) => r.id != t.id).toList(),
+        simpan: true);
+    tampilToast('Tiket ${t.pelanggan} dihapus');
+
+    // Tiket yang belum pernah terkirim tidak ada di server — tidak ada yang
+    // perlu dihapus di sana.
+    if (!sudahDiServer || !online) return;
+    try {
+      await _sync.hapusTiket(serverUrl, t.id);
+    } on Object catch (e) {
+      // Gagal di sini berarti tiketnya akan muncul lagi saat sync berikutnya,
+      // jadi jangan ditelan diam-diam.
+      tampilToast('Gagal hapus di server: $e');
+    }
+  }
 
   void simpanEdit(
     String id, {

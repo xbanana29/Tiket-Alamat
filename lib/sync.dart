@@ -94,6 +94,24 @@ class Sync {
     }).toList();
   }
 
+  /// Hapus tiket dari server, sungguhan.
+  ///
+  /// Butuh `deleteRule` koleksi `tiket` terbuka. Kalau masih terkunci, server
+  /// menjawab 403 dan galatnya diteruskan supaya tidak gagal diam-diam —
+  /// tiket yang terlanjur hilang di HP tapi masih ada di server akan muncul
+  /// lagi pada sinkronisasi berikutnya.
+  Future<void> hapusTiket(String url, String tiketId) async {
+    if (url.trim().isEmpty) throw Exception('URL server kosong');
+    final coll = _client(url).collection('tiket');
+    try {
+      final ada = await coll.getFirstListItem("tiket_id='$tiketId'");
+      await coll.delete(ada.id);
+    } on ClientException catch (e) {
+      // Sudah tidak ada di server = tujuan tercapai.
+      if (e.statusCode != 404) rethrow;
+    }
+  }
+
   /// Hapus merek dari server, sungguhan — barisnya lenyap, bukan ditandai.
   ///
   /// Butuh `deleteRule` koleksi `merek` terbuka; kalau masih terkunci

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart' show ClientException;
+import 'package:tiket_gudang/brand.dart';
 import 'package:tiket_gudang/models.dart';
 import 'package:tiket_gudang/printer.dart';
 import 'package:tiket_gudang/state.dart';
@@ -374,6 +375,32 @@ void main() {
       final sekali = gabungTiket([], server);
       final duakali = gabungTiket(sekali, server);
       expect(duakali.length, 2);
+    });
+  });
+
+  group('hapusTiket', () {
+    AppState app(String petugas) =>
+        AppState(store: _StoreHampa(), sync: _SyncPalsu({}))
+          ..petugas = petugas
+          ..riwayat = [_antri('a'), _antri('b')];
+
+    test('petugas biasa tidak boleh menghapus', () {
+      final a = app('Rudi');
+      expect(a.bolehHapusTiket, isFalse);
+      a.hapusTiket(a.riwayat.first);
+      expect(a.riwayat.length, 2);
+    });
+
+    test('petugas yang diizinkan bisa menghapus', () {
+      final a = app(kPetugasBolehHapus);
+      expect(a.bolehHapusTiket, isTrue);
+      a.hapusTiket(a.riwayat.firstWhere((t) => t.id == 'a'));
+      expect(a.riwayat.map((t) => t.id), ['b']);
+    });
+
+    test('nama petugas tidak peka huruf besar-kecil', () {
+      expect(app(kPetugasBolehHapus.toUpperCase()).bolehHapusTiket, isTrue);
+      expect(app(' $kPetugasBolehHapus ').bolehHapusTiket, isTrue);
     });
   });
 

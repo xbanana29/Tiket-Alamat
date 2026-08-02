@@ -7,19 +7,57 @@
     "viewRule": "",
     "createRule": "",
     "updateRule": "",
-    "deleteRule": null,
+    "deleteRule": "",
     "indexes": [
       "CREATE UNIQUE INDEX `idx_tiket_id` ON `tiket` (`tiket_id`)"
     ],
     "fields": [
-      { "name": "tiket_id", "type": "text", "required": true },
-      { "name": "pelanggan", "type": "text", "required": true },
-      { "name": "waktu", "type": "date", "required": true },
-      { "name": "petugas", "type": "text", "required": true },
-      { "name": "mode", "type": "select", "required": true, "maxSelect": 1, "values": ["sak", "minyak"] },
-      { "name": "items", "type": "json", "maxSize": 20000 },
-      { "name": "jerigen", "type": "number", "min": 0, "max": 99 },
-      { "name": "revisi", "type": "json", "maxSize": 50000 }
+      {
+        "name": "tiket_id",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "pelanggan",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "waktu",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "petugas",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "mode",
+        "type": "select",
+        "required": true,
+        "maxSelect": 1,
+        "values": [
+          "sak",
+          "minyak"
+        ]
+      },
+      {
+        "name": "items",
+        "type": "json",
+        "maxSize": 20000
+      },
+      {
+        "name": "jerigen",
+        "type": "number",
+        "min": 0,
+        "max": 99
+      },
+      {
+        "name": "revisi",
+        "type": "json",
+        "maxSize": 50000
+      }
     ]
   },
   {
@@ -34,9 +72,21 @@
       "CREATE UNIQUE INDEX `idx_merek_nama` ON `merek` (`nama`)"
     ],
     "fields": [
-      { "name": "nama", "type": "text", "required": true },
-      { "name": "kategori", "type": "text", "required": true },
-      { "name": "diubah", "type": "date", "required": true }
+      {
+        "name": "nama",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "kategori",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "diubah",
+        "type": "date",
+        "required": true
+      }
     ]
   }
 ]
