@@ -17,14 +17,14 @@
 | Admin UI | `https://pb.rejekiamerta.com/_/` |
 | Admin email | `nikokevin29@gmail.com` |
 | Admin password | **tidak disimpan di repo** — ada di `/root/pocketbase/.admin-password` pada VPS |
-| Versi | PocketBase 0.39.10 |
+| Versi | PocketBase 0.40.6 (naik dari 0.39.10 pada 2026-11-21; sync klien sudah diuji, tanpa perubahan app) |
 | Host | VPS `204.168.237.146`, container Docker `pocketbase`, bind `127.0.0.1:8090` |
 | Compose | `/root/pocketbase/docker-compose.yml` (+ runbook di `/root/pocketbase/README.md`) |
 | Data | `/root/pocketbase/pb_data` |
 | Reverse proxy | nginx-proxy-manager (`npm-app-1`) → `pocketbase:8090` lewat network `npm_default` |
 | TLS | Let's Encrypt ECDSA, auto-renew oleh NPM |
 | DNS | Cloudflare A `pb.rejekiamerta.com` → `204.168.237.146` (proxied) |
-| Backup | `/root/backup_pocketbase.sh`, cron harian 21:00 → `r2:vst-laravel/backups/pocketbase`, retensi 30 hari, notif Telegram |
+| Backup | `/root/backup_pocketbase.sh`, cron harian 04:00 WIB → `r2:vst-laravel/backups/pocketbase`, retensi 3 tanggal terakhir, notif Telegram |
 
 > ⚠️ **Jangan pernah menulis password di file ini.** Versi sebelumnya sempat
 > memuat password superuser dalam teks biasa; commit itu masih ada di riwayat
@@ -470,7 +470,7 @@ tiket_gudang/
 - [ ] App unggah → status **Terkirim** (belum dites dari HP)  
 - [x] Edit + re-upload tidak dobel record (diuji lewat HTTP)  
 - [ ] ~~Rules production dikunci~~ — sengaja terbuka, keputusan owner  
-- [x] Backup `pb_data` terjadwal (harian 21:00 → Cloudflare R2, retensi 30 hari)  
+- [x] Backup `pb_data` terjadwal (harian 04:00 WIB → Cloudflare R2, retensi 3 tanggal terakhir)  
 
 ---
 
