@@ -211,6 +211,11 @@ const kFontScales = [0.82, 1.0, 1.14, 1.3];
 
 const mono = 'monospace';
 
+/// Tema dibangun sekali saja. Membangun ThemeData mahal, dan dulu ini terjadi
+/// dua kali (terang + gelap) setiap AppState berubah.
+final temaTerangApp = buildTheme(dark: false);
+final temaGelapApp = buildTheme(dark: true);
+
 ThemeData buildTheme({required bool dark}) {
   final p = dark ? AppPalette.dark : AppPalette.light;
   final base = ThemeData(

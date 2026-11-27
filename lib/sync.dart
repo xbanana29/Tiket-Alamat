@@ -23,6 +23,23 @@ bool ditolakPermanen(Object e) {
   return c >= 400 && c < 500 && c != 401 && c != 403 && c != 408 && c != 429;
 }
 
+/// Id record PocketBase yang diturunkan dari `tiket_id`.
+///
+/// Dengan id yang bisa dihitung, upsert cukup satu request di kasus biasa:
+/// `create` untuk tiket baru, `update`/`delete` langsung ke id ini untuk tiket
+/// yang sudah ada — tanpa mencarinya dulu lewat filter.
+///
+/// PocketBase mewajibkan id tepat 15 karakter `[a-z0-9]`. `tiket_id` buatan
+/// app adalah mikrodetik epoch (16 digit); dalam basis 36 jadi ±11 karakter,
+/// lalu diberi nol di depan. Null untuk `tiket_id` yang bukan angka — tiket
+/// itu memakai jalur lama (cari lewat filter).
+String? idRecordTiket(String tiketId) {
+  final n = int.tryParse(tiketId);
+  if (n == null || n < 0) return null;
+  final s = n.toRadixString(36);
+  return s.length > 15 ? null : s.padLeft(15, '0');
+}
+
 class Sync {
   String _url = '';
   PocketBase? _pb;
@@ -102,9 +119,22 @@ class Sync {
   /// lagi pada sinkronisasi berikutnya.
   Future<void> hapusTiket(String url, String tiketId) async {
     if (url.trim().isEmpty) throw Exception('URL server kosong');
-    final coll = _client(url).collection('tiket');
+    final pb = _client(url);
+    final coll = pb.collection('tiket');
+    final id = idRecordTiket(tiketId);
+    if (id != null) {
+      try {
+        await coll.delete(id);
+        return;
+      } on ClientException catch (e) {
+        if (e.statusCode != 404) rethrow;
+        // 404: sudah terhapus, atau record lama ber-id acak — cari di bawah.
+      }
+    }
     try {
-      final ada = await coll.getFirstListItem("tiket_id='$tiketId'");
+      final ada = await coll.getFirstListItem(
+        pb.filter('tiket_id = {:id}', {'id': tiketId}),
+      );
       await coll.delete(ada.id);
     } on ClientException catch (e) {
       // Sudah tidak ada di server = tujuan tercapai.
@@ -119,9 +149,12 @@ class Sync {
   /// supaya tidak gagal diam-diam.
   Future<void> hapusMerek(String url, String nama) async {
     if (url.trim().isEmpty) throw Exception('URL server kosong');
-    final coll = _client(url).collection('merek');
+    final pb = _client(url);
+    final coll = pb.collection('merek');
     try {
-      final ada = await coll.getFirstListItem('nama="$nama"');
+      final ada = await coll.getFirstListItem(
+        pb.filter('nama = {:nama}', {'nama': nama}),
+      );
       await coll.delete(ada.id);
     } on ClientException catch (e) {
       // Sudah tidak ada di server = tujuan tercapai.
@@ -137,9 +170,14 @@ class Sync {
       'kategori': m.kategori,
       'diubah': m.diubah.toUtc().toIso8601String(),
     };
-    final coll = _client(url).collection('merek');
+    final pb = _client(url);
+    final coll = pb.collection('merek');
+    // ponytail: tetap cari-lalu-tulis (2 request). Merek jarang berubah dan
+    // record lamanya ber-id acak; id turunan seperti tiket tidak sepadan.
     try {
-      final ada = await coll.getFirstListItem('nama="${m.nama}"');
+      final ada = await coll.getFirstListItem(
+        pb.filter('nama = {:nama}', {'nama': m.nama}),
+      );
       await coll.update(ada.id, body: body);
     } on ClientException catch (e) {
       if (e.statusCode == 404) {
@@ -170,10 +208,50 @@ class Sync {
       'jerigen': t.jerigen,
       'revisi': t.revisi.map((e) => e.toJson()).toList(),
     };
-    final coll = _client(url).collection('tiket');
-    // Upsert manual: tiket yang diedit lalu di-push ulang tidak boleh dobel.
+    final pb = _client(url);
+    final coll = pb.collection('tiket');
+    final id = idRecordTiket(t.id);
+
+    // Upsert: tiket yang diedit lalu di-push ulang tidak boleh dobel.
+    //
+    // Urutan dipilih supaya kasus paling sering — tiket baru — cukup satu
+    // request:
+    //   1. create dengan id turunan          → tiket baru
+    //   2. 400 → update ke id turunan        → tiket yang diedit
+    //   3. 404 → cari lewat tiket_id, update → record lama ber-id acak
+    //   4. 404 → create tanpa id             → server menolak id turunan
+    // Langkah 4 juga yang meneruskan 400 bila isinya memang ditolak.
+    if (id != null) {
+      try {
+        await coll.create(body: {...body, 'id': id});
+        return;
+      } on ClientException catch (e) {
+        if (e.statusCode != 400) rethrow;
+        try {
+          await coll.update(id, body: body);
+          return;
+        } on ClientException catch (e2) {
+          if (e2.statusCode != 404) rethrow;
+        }
+        try {
+          final ada = await coll.getFirstListItem(
+            pb.filter('tiket_id = {:id}', {'id': t.id}),
+          );
+          await coll.update(ada.id, body: body);
+          return;
+        } on ClientException catch (e3) {
+          if (e3.statusCode != 404) rethrow;
+        }
+        await coll.create(body: body);
+        return;
+      }
+    }
+
+    // `tiket_id` bukan angka: jalur lama, cari dulu lalu tulis.
     try {
-      final ada = await coll.getFirstListItem("tiket_id='${t.id}'");
+      final ada = await coll.getFirstListItem(
+        pb.filter('tiket_id = {:id}', {'id': t.id}),
+      );
       await coll.update(ada.id, body: body);
     } on ClientException catch (e) {
       if (e.statusCode == 404) {

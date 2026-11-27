@@ -631,4 +631,107 @@ void main() {
       expect(ulang.jam, '09:41');
     });
   });
+
+  group('pangkasRiwayat', () {
+    Tiket buat(String id, DateTime waktu, String status) => Tiket(
+      id: id,
+      pelanggan: 'TOKO',
+      waktu: waktu,
+      petugas: 'Andi',
+      mode: 'sak',
+      status: status,
+    );
+    final sekarang = DateTime(2026, 11, 28, 10);
+
+    test('tiket terkirim yang lama dibuang, yang baru disimpan', () {
+      final r = pangkasRiwayat([
+        buat('baru', DateTime(2026, 11, 20), statusTerkirim),
+        buat('batas', DateTime(2026, 10, 29), statusTerkirim),
+        buat('lama', DateTime(2026, 10, 28, 23), statusTerkirim),
+      ], sekarang);
+      expect(r.map((t) => t.id), ['baru', 'batas']);
+    });
+
+    test('tiket belum terkirim tidak pernah dibuang, setua apa pun', () {
+      final r = pangkasRiwayat([
+        buat('antri', DateTime(2025, 1, 1), statusAntri),
+        buat('tolak', DateTime(2025, 1, 1), statusDitolak),
+      ], sekarang);
+      expect(r.map((t) => t.id), ['antri', 'tolak']);
+    });
+  });
+
+  group('idRecordTiket', () {
+    test('tiket_id mikrodetik jadi id PocketBase 15 karakter', () {
+      final id = idRecordTiket('1785594578939123')!;
+      expect(id, hasLength(15));
+      expect(RegExp(r'^[a-z0-9]{15}$').hasMatch(id), isTrue);
+      // Bisa dihitung ulang: tiket yang sama selalu ke record yang sama.
+      expect(idRecordTiket('1785594578939123'), id);
+      expect(idRecordTiket('1785594578939124'), isNot(id));
+    });
+
+    test('tiket_id bukan angka memakai jalur lama', () {
+      expect(idRecordTiket('cek-izin-hapus'), isNull);
+      expect(idRecordTiket(''), isNull);
+    });
+  });
+
+  group('SatuJalan', () {
+    test('panggilan di tengah jalan tidak menggandakan, tapi diulang sekali',
+        () async {
+      final j = SatuJalan();
+      var putaran = 0;
+      Future<void> tugas() async {
+        putaran++;
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      final a = j.jalankan(tugas);
+      final b = j.jalankan(tugas);
+      final c = j.jalankan(tugas);
+      await Future.wait([a, b, c]);
+      // Satu putaran asli + satu ulangan untuk semua yang datang belakangan.
+      expect(putaran, 2);
+      expect(j.berjalan, isFalse);
+    });
+  });
+
+  group('AppState tanpa rebuild berlebih', () {
+    AppState app() => AppState(store: _StoreHampa(), sync: _SyncPalsu({}));
+
+    test('unggah bersamaan tidak mengirim tiket yang sama dua kali', () async {
+      final s = _SyncPalsu({});
+      final a = AppState(store: _StoreHampa(), sync: s)
+        ..riwayat = [_antri('a')];
+      await Future.wait([
+        a.unggahAntrian(diam: true),
+        a.unggahAntrian(diam: true),
+      ]);
+      expect(s.terkirim, ['a']);
+      expect(a.queue, 0);
+    });
+
+    test('toast dan ketukan numpad tidak memicu notifyListeners', () {
+      final a = app()..bukaKeypad('ACI GA');
+      var n = 0;
+      a.addListener(() => n++);
+
+      a.tampilToast('halo');
+      a.tekan('5');
+      a.tekanMinyak('3');
+
+      expect(n, 0);
+      expect(a.toast, 'halo');
+      expect(a.buf, '5');
+      expect(a.minyakQty, 3);
+    });
+
+    test('hitungan antrian ikut berubah saat riwayat diganti', () {
+      final a = app()..riwayat = [_antri('a')];
+      expect(a.queue, 1);
+      a.riwayat = [_antri('a').copyWith(status: statusTerkirim)];
+      expect(a.queue, 0);
+    });
+  });
 }

@@ -359,12 +359,7 @@ class Printer {
   }
 }
 
-const _bulan = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-];
-
 /// "1 Agu 2026 · 09:41" — dipakai di struk dan pratinjau.
 String fmtWaktuCetak(DateTime d) =>
-    '${d.day} ${_bulan[d.month - 1]} ${d.year} · '
+    '${d.day} ${namaBulanPendek[d.month - 1]} ${d.year} · '
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

@@ -62,15 +62,20 @@ class TabPesanan extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   color: neutral200,
-                  child: Text(
-                    (s.isMinyak
-                            ? '${s.minyakQty} jerigen'
-                            : '${s.totalSak} sak')
-                        .toUpperCase(),
-                    style: TextStyle(
-                      fontSize: f * .74,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: f * .74 * .06,
+                  // Jumlah jerigen berubah tiap ketukan numpad Minyak, yang
+                  // tidak lagi memicu notifyListeners.
+                  child: ValueListenableBuilder(
+                    valueListenable: s.minyakBufNotifier,
+                    builder: (_, _, _) => Text(
+                      (s.isMinyak
+                              ? '${s.minyakQty} jerigen'
+                              : '${s.totalSak} sak')
+                          .toUpperCase(),
+                      style: TextStyle(
+                        fontSize: f * .74,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: f * .74 * .06,
+                      ),
                     ),
                   ),
                 ),
@@ -114,10 +119,13 @@ class _Minyak extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text(
-                            s.minyakBuf.isEmpty ? '0' : s.minyakBuf,
-                            style: heading(angkaFs, height: .9).copyWith(
-                              letterSpacing: -angkaFs * .04,
+                          ValueListenableBuilder(
+                            valueListenable: s.minyakBufNotifier,
+                            builder: (_, buf, _) => Text(
+                              buf.isEmpty ? '0' : buf,
+                              style: heading(angkaFs, height: .9).copyWith(
+                                letterSpacing: -angkaFs * .04,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -174,7 +182,6 @@ class _Sak extends StatelessWidget {
     return Column(
       children: [
         Flexible(
-          flex: kb ? 1 : 1,
           child: Container(
             decoration: BoxDecoration(
               color: neutral100,
@@ -188,7 +195,7 @@ class _Sak extends StatelessWidget {
             ),
           ),
         ),
-        if (!kb) Flexible(child: _GridMerek(merek: s.merekAktif)),
+        if (!kb) Flexible(child: _GridMerek(merek: s.brands)),
       ],
     );
   }
@@ -552,8 +559,6 @@ class KeypadSheet extends StatelessWidget {
     final s = AppScope.of(context);
     final f = fs(context);
     final qtySekarang = s.armed == null ? 0 : s.qtyOf(s.armed!);
-    // Sudah punya isi lalu dikonfirmasi 0 = batalkan barangnya.
-    final akanBatal = qtySekarang > 0 && (int.tryParse(s.buf) ?? 0) == 0;
     return Stack(
       children: [
         Positioned.fill(
@@ -597,22 +602,38 @@ class KeypadSheet extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Text(s.buf.isEmpty ? '0' : s.buf,
-                          style: heading(f * 2.2, height: 1)),
+                      // Ketukan numpad hanya membangun ulang angka ini dan
+                      // tombol aksi di bawah, bukan seluruh layar.
+                      ValueListenableBuilder(
+                        valueListenable: s.bufNotifier,
+                        builder: (_, buf, _) => Text(
+                          buf.isEmpty ? '0' : buf,
+                          style: heading(f * 2.2, height: 1),
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 // 3 kolom, sama persis dengan numpad Minyak: 1-2-3 / 4-5-6 /
                 // 7-8-9 / C-0-aksi. Petugas berpindah antar mode sepanjang
                 // hari, jadi letak angkanya tidak boleh berubah.
-                Numpad(
-                  kolom: 3,
-                  onDigit: s.tekan,
-                  onClear: s.hapusBuf,
-                  onAkhir: s.konfirmasiQty,
-                  // Barang yang sudah dipilih + angka 0 = dibatalkan. Tombolnya
-                  // ikut berubah supaya petugas tahu itu sebelum menekan.
-                  labelAkhir: akanBatal ? '✕' : '✓',
+                ValueListenableBuilder(
+                  valueListenable: s.bufNotifier,
+                  builder: (_, buf, _) {
+                    // Sudah punya isi lalu dikonfirmasi 0 = batalkan barangnya.
+                    final akanBatal =
+                        qtySekarang > 0 && (int.tryParse(buf) ?? 0) == 0;
+                    return Numpad(
+                      kolom: 3,
+                      onDigit: s.tekan,
+                      onClear: s.hapusBuf,
+                      onAkhir: s.konfirmasiQty,
+                      // Barang yang sudah dipilih + angka 0 = dibatalkan.
+                      // Tombolnya ikut berubah supaya petugas tahu itu
+                      // sebelum menekan.
+                      labelAkhir: akanBatal ? '✕' : '✓',
+                    );
+                  },
                 ),
               ],
             ),

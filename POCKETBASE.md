@@ -274,7 +274,7 @@ Field wajib (harus cocok dengan `sync.dart`):
 |---|---|---|
 | `tiket_id` | text, required | unique index |
 | `pelanggan` | text, required | |
-| `waktu` | date, required | app kirim UTC ISO8601 |
+| `waktu` | date, required | app kirim UTC ISO8601 · index `idx_tiket_waktu` |
 | `petugas` | text, required | |
 | `mode` | select `sak` \| `minyak` | |
 | `items` | json | array `{nama, qty}` |
@@ -340,8 +340,13 @@ adb reverse tcp:8090 tcp:8090
 - Sync **dua arah**, tapi tarikannya **per tanggal**, bukan seluruh riwayat:
   app hanya meminta tiket untuk tanggal yang sedang dibuka di tab Daftar
   (filter `waktu >= awal-hari && waktu < awal-hari-berikutnya`, dalam UTC).
-  Server perlu melayani query filter itu dengan lancar; jangan hapus atau
+  Server melayani query itu lewat index `idx_tiket_waktu` (pasang dengan
+  `tambah-index-waktu.sh` di folder induk repo); jangan hapus atau
   ganti tipe field `waktu`.
+- **Id record tiket diturunkan dari `tiket_id`** (basis 36, 15 karakter, lihat
+  `idRecordTiket` di `sync.dart`), supaya upsert cukup satu request. Record
+  lama ber-id acak tetap dikenali lewat filter `tiket_id`. Jangan ubah pola
+  field `id` koleksi `tiket` jadi lebih ketat dari `[a-z0-9]{15}`.
 - **Resolusi konflik seadanya:** tiket lokal yang belum terkirim selalu menang;
   selebihnya versi server yang menang. Tidak ada merge per-field, tidak ada
   vector clock. Dua petugas mengedit tiket yang sama nyaris bersamaan =

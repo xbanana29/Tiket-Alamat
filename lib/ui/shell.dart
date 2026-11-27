@@ -65,27 +65,33 @@ class Shell extends StatelessWidget {
             // Toast di atas, bukan di bawah: bagian bawah layar penuh tombol
             // yang sering ditekan berturut-turut (numpad, Cetak tiket, tab),
             // dan toast di sana menutupi tepat tombol berikutnya.
-            if (s.toast.isNotEmpty)
-              Positioned(
-                left: 8,
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  color: ink,
-                  child: Text(
-                    s.toast,
-                    style: TextStyle(
-                      color: toastFg,
-                      fontSize: f * .8,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+            // Didengarkan sendiri: muncul/hilangnya toast hanya membangun
+            // ulang kotak ini.
+            Positioned(
+              left: 8,
+              right: 8,
+              top: 8,
+              child: ValueListenableBuilder(
+                valueListenable: s.toastNotifier,
+                builder: (_, toast, _) => toast.isEmpty
+                    ? const SizedBox.shrink()
+                    : Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        color: ink,
+                        child: Text(
+                          toast,
+                          style: TextStyle(
+                            color: toastFg,
+                            fontSize: f * .8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
               ),
+            ),
           ],
         ),
       ),

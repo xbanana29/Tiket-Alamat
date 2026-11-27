@@ -12,12 +12,10 @@ void main() {
   // Rancangan berbentuk potret 390×844; lanskap tidak pernah dirancang.
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final state = AppState();
-  // Muat preferensi (termasuk darkMode) sebelum frame pertama bila memungkinkan.
   runApp(TiketAlamatApp(state: state));
-  state.init().then((_) {
-    // Setelah load, pastikan palet ikut darkMode tersimpan.
-    applyPalette(state.darkMode ? AppPalette.dark : AppPalette.light);
-  });
+  // darkMode yang dimuat dari disk memicu MaterialApp membangun ulang, dan
+  // palet ikut diterapkan di `builder` — tidak perlu disetel di sini.
+  state.init();
 }
 
 /// Warna bilah navigasi Android — sengaja beda tipis dari latar aplikasi
@@ -99,25 +97,22 @@ class _TiketAlamatAppState extends State<TiketAlamatApp>
 
   @override
   Widget build(BuildContext context) {
-    // Dengarkan AppState (termasuk darkMode) lewat ListenableBuilder.
+    // MaterialApp hanya mendengarkan darkMode. Sisa AppState sampai ke widget
+    // lewat AppScope, jadi ketukan numpad atau toast tidak lagi membangun
+    // ulang MaterialApp beserta temanya.
     return AppScope(
       state: widget.state,
-      child: ListenableBuilder(
-        listenable: widget.state,
-        builder: (_, _) {
-          final dark = widget.state.darkMode;
+      child: ValueListenableBuilder(
+        valueListenable: widget.state.temaGelap,
+        builder: (_, dark, _) {
           return MaterialApp(
             title: kAppName,
             debugShowCheckedModeBanner: false,
-            theme: buildTheme(dark: false),
-            darkTheme: buildTheme(dark: true),
+            theme: temaTerangApp,
+            darkTheme: temaGelapApp,
             themeMode: dark ? ThemeMode.dark : ThemeMode.light,
             builder: (context, child) {
-              // Sinkronkan token warna global ke theme aktif.
-              applyPalette(
-                Theme.of(context).extension<AppPalette>() ??
-                    (dark ? AppPalette.dark : AppPalette.light),
-              );
+              // Palet global sudah diganti oleh setter `AppState.darkMode`.
               final overlay = dark
                   // Nama SystemUiOverlayStyle.light/.dark menyesatkan: `.dark`
                   // menyetel ikon navigasi jadi PUTIH. Dipakai bersama warna

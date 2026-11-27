@@ -9,7 +9,8 @@
     "updateRule": "",
     "deleteRule": "",
     "indexes": [
-      "CREATE UNIQUE INDEX `idx_tiket_id` ON `tiket` (`tiket_id`)"
+      "CREATE UNIQUE INDEX `idx_tiket_id` ON `tiket` (`tiket_id`)",
+      "CREATE INDEX `idx_tiket_waktu` ON `tiket` (`waktu`)"
     ],
     "fields": [
       {

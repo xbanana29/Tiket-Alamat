@@ -80,7 +80,7 @@ class _UtamaState extends State<_Utama> {
                               fontWeight: FontWeight.w700,
                             )),
                         Text(
-                          '${s.merekAktif.length} merek · tambah, ubah, hapus',
+                          '${s.brands.length} merek · tambah, ubah, hapus',
                           style: TextStyle(
                             fontSize: f * .7,
                             color: neutral600,
@@ -826,11 +826,11 @@ class _MerekState extends State<_Merek> {
                     child: TombolAksi(
                       namaEdit == null ? 'Tambah' : 'Simpan perubahan',
                       onTap: () {
-                        final sebelum = s.merekAktif.length;
+                        final sebelum = s.brands.length;
                         s.simpanMerek(namaEdit, ctl.text, kategori);
                         // Reset form hanya bila simpan benar-benar terjadi.
                         if (namaEdit != null ||
-                            s.merekAktif.length != sebelum) {
+                            s.brands.length != sebelum) {
                           _reset();
                         }
                       },
@@ -852,7 +852,7 @@ class _MerekState extends State<_Merek> {
             ],
           ),
         ),
-        for (final m in s.merekAktif)
+        for (final m in s.brands)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(

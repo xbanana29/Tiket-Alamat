@@ -25,6 +25,18 @@ class Revisi {
   );
 }
 
+/// Tanggal lokal sebagai kunci (YYYY-MM-DD).
+String kunciTanggal(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
+/// Nama bulan singkat — dipakai di layar dan di struk.
+const namaBulanPendek = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+];
+
 const statusTerkirim = 'Terkirim';
 const statusAntri = 'Menunggu unggah';
 
@@ -63,10 +75,7 @@ class Tiket {
   bool get isMinyak => mode == 'minyak';
 
   /// Tanggal lokal sebagai kunci pengelompokan (YYYY-MM-DD).
-  String get tanggalKunci =>
-      '${waktu.year.toString().padLeft(4, '0')}-'
-      '${waktu.month.toString().padLeft(2, '0')}-'
-      '${waktu.day.toString().padLeft(2, '0')}';
+  String get tanggalKunci => kunciTanggal(waktu);
 
   String get jam =>
       '${waktu.hour.toString().padLeft(2, '0')}:'

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'models.dart';
 import 'printer.dart';
 import 'store.dart';
 import 'sync.dart';
+import 'theme.dart' show AppPalette, applyPalette, kFontScales;
 
 /// Naikkan angka pada string buffer numpad: maksimal 2 digit, buang nol depan,
 /// clamp ke 99. Sama persis dengan `press()` di rancangan.
@@ -53,23 +55,98 @@ Tiket terapkanEdit(
   required List<Item> items,
   required int jerigen,
 }) {
-  final barisBaru = asli.isMinyak
-      ? ['$jerigen JERIGEN MINYAK']
-      : items.map((i) => '${i.qty} SAK ${i.nama}').toList();
-  final berubah = !listEquals(asli.barisTeks, barisBaru);
-  final namaBerubah = asli.pelanggan != pelanggan;
-  final revisi = (berubah || namaBerubah)
-      ? [
-          ...asli.revisi,
-          Revisi(asli.pelanggan, berubah ? asli.barisTeks : const []),
-        ]
-      : asli.revisi;
-  return asli.copyWith(
+  final baru = asli.copyWith(
     pelanggan: pelanggan,
     items: items,
     jerigen: jerigen,
-    revisi: revisi,
   );
+  final berubah = !listEquals(asli.barisTeks, baru.barisTeks);
+  final namaBerubah = asli.pelanggan != pelanggan;
+  if (!berubah && !namaBerubah) return baru;
+  return baru.copyWith(
+    revisi: [
+      ...asli.revisi,
+      Revisi(asli.pelanggan, berubah ? asli.barisTeks : const []),
+    ],
+  );
+}
+
+/// Berapa hari tiket yang sudah terkirim disimpan di HP.
+///
+/// Salinan utuhnya ada di server, dan tab Daftar menarik ulang tanggal mana
+/// pun yang dibuka. Tanpa batas ini `data.json` tumbuh selamanya dan seluruh
+/// isinya di-encode ulang tiap kali ada yang disimpan.
+const kSimpanRiwayatHari = 30;
+
+/// Buang tiket terkirim yang lebih tua dari [hari] hari.
+///
+/// Tiket yang **belum terkirim** tidak pernah dibuang, setua apa pun —
+/// satu-satunya salinannya ada di HP ini.
+List<Tiket> pangkasRiwayat(
+  List<Tiket> riwayat,
+  DateTime sekarang, {
+  int hari = kSimpanRiwayatHari,
+}) {
+  final batas = DateTime(sekarang.year, sekarang.month, sekarang.day - hari);
+  return riwayat
+      .where((t) => belumTerkirim(t.status) || !t.waktu.isBefore(batas))
+      .toList();
+}
+
+bool _samaHari(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Isi tiket identik (termasuk status), dibandingkan lewat bentuk JSON-nya.
+bool samaIsiTiket(Tiket a, Tiket b) =>
+    jsonEncode(a.toJson()) == jsonEncode(b.toJson());
+
+bool _samaMerek(List<Merek> a, List<Merek> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final x = a[i], y = b[i];
+    if (x.nama != y.nama ||
+        x.kategori != y.kategori ||
+        x.diubah != y.diubah ||
+        x.terkirim != y.terkirim) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/// Jalankan satu tugas async paling banyak satu sekaligus.
+///
+/// Panggilan yang datang saat tugas berjalan tidak memulai salinan kedua —
+/// ia menunggu yang sedang berjalan, dan tugasnya diulang sekali setelah
+/// selesai supaya perubahan yang datang di tengah jalan tetap terbawa.
+class SatuJalan {
+  Future<void>? _jalan;
+  bool _lagi = false;
+
+  bool get berjalan => _jalan != null;
+
+  /// Minta satu putaran lagi setelah putaran ini selesai.
+  void ulangi() => _lagi = true;
+
+  Future<void> jalankan(Future<void> Function() tugas) {
+    final j = _jalan;
+    if (j != null) {
+      _lagi = true;
+      return j;
+    }
+    return _jalan = _putar(tugas);
+  }
+
+  Future<void> _putar(Future<void> Function() tugas) async {
+    try {
+      do {
+        _lagi = false;
+        await tugas();
+      } while (_lagi);
+    } finally {
+      _jalan = null;
+    }
+  }
 }
 
 /// Gabungkan tiket dari server ke dalam riwayat lokal.
@@ -208,19 +285,10 @@ List<Merek> buangMerekTerhapus(List<Merek> daftar, Set<String> adaDiServer) =>
       return !m.terkirim && !merekBawaan(m);
     }).toList();
 
-String kunciTanggal(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}-'
-    '${d.month.toString().padLeft(2, '0')}-'
-    '${d.day.toString().padLeft(2, '0')}';
-
 const _hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-const _bulan = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-];
 
 String fmtTanggal(DateTime d) =>
-    '${_hari[d.weekday % 7]}, ${d.day} ${_bulan[d.month - 1]} ${d.year}';
+    '${_hari[d.weekday % 7]}, ${d.day} ${namaBulanPendek[d.month - 1]} ${d.year}';
 
 class AppState extends ChangeNotifier {
   AppState({Store? store, Sync? sync, Printer? printer})
@@ -237,7 +305,20 @@ class AppState extends ChangeNotifier {
   List<Merek> brands = List.of(seedMerek);
   List<Tiket> riwayat = [];
   int fontStep = 1;
-  bool darkMode = false;
+
+  /// Didengarkan MaterialApp sendiri: hanya perubahan tema yang membangun
+  /// ulang MaterialApp, bukan setiap `notifyListeners`.
+  final temaGelap = ValueNotifier(false);
+  bool get darkMode => temaGelap.value;
+
+  /// Palet global diganti di sini, sebelum siapa pun dibangun ulang. Dulu
+  /// palet diambil dari `Theme.of` di MaterialApp.builder — tema yang sedang
+  /// dianimasikan, sehingga di frame pertama masih palet lama.
+  set darkMode(bool v) {
+    applyPalette(v ? AppPalette.dark : AppPalette.light);
+    temaGelap.value = v;
+  }
+
   int printerWidth = 58;
   int copies = 1;
   /// Baris kosong sebelum potong kertas (0–3). Printer thermal sering
@@ -257,12 +338,29 @@ class AppState extends ChangeNotifier {
   String get pelanggan => pelangganCtl.text;
 
   List<Item> items = [];
-  int minyakQty = 0;
-  String minyakBuf = '';
+
+  // Tiga nilai di bawah berubah tiap ketukan numpad atau tiap toast. Masing-
+  // masing punya ValueNotifier sendiri supaya hanya widget yang menampilkannya
+  // yang dibangun ulang — bukan seluruh aplikasi lewat AppScope.
+
+  /// Buffer numpad Minyak.
+  final minyakBufNotifier = ValueNotifier('');
+  String get minyakBuf => minyakBufNotifier.value;
+  set minyakBuf(String v) => minyakBufNotifier.value = v;
+  int get minyakQty => int.tryParse(minyakBuf) ?? 0;
+
   String? armed; // merek yang sedang diisi qty-nya
-  String buf = '';
+
+  /// Buffer numpad "Jumlah sak".
+  final bufNotifier = ValueNotifier('');
+  String get buf => bufNotifier.value;
+  set buf(String v) => bufNotifier.value = v;
+
   bool online = false;
-  String toast = '';
+
+  final toastNotifier = ValueNotifier('');
+  String get toast => toastNotifier.value;
+
   String histFilter = 'semua';
   String daftarView = 'tiket';
   String aturView = 'utama';
@@ -273,32 +371,66 @@ class AppState extends ChangeNotifier {
   Timer? _toastTimer;
   StreamSubscription? _netSub;
 
-  double get scale => [0.82, 1.0, 1.14, 1.3][fontStep];
+  double get scale => kFontScales[fontStep];
   int get totalSak => items.fold(0, (a, b) => a + b.qty);
   bool get isMinyak => mode == 'minyak';
+
+  // Turunan `riwayat` disimpan dan dihitung ulang hanya saat daftarnya
+  // diganti. Ini bergantung pada aturan yang sudah dipakai di seluruh file:
+  // `riwayat` selalu **diganti** dengan list baru, tidak pernah diubah di
+  // tempat (`add`/`remove`).
+  List<Tiket>? _statusDari;
+  int _queue = 0;
+  int _ditolak = 0;
+
+  void _hitungStatus() {
+    if (identical(_statusDari, riwayat)) return;
+    _statusDari = riwayat;
+    _queue = 0;
+    _ditolak = 0;
+    for (final t in riwayat) {
+      if (belumTerkirim(t.status)) _queue++;
+      if (t.status == statusDitolak) _ditolak++;
+    }
+  }
+
   /// Tiket yang belum sampai ke server — termasuk yang ditolak, karena itu juga
   /// belum tersimpan di mana pun selain HP ini.
-  int get queue => riwayat.where((t) => belumTerkirim(t.status)).length;
-
-  /// Merek yang tampil di layar. Tidak ada lagi baris tersembunyi — penghapusan
-  /// sekarang sungguhan, jadi daftar ini sama dengan isi .
-  List<Merek> get merekAktif => brands;
+  int get queue {
+    _hitungStatus();
+    return _queue;
+  }
 
   /// Tiket yang ditolak server. Dipakai untuk peringatan di Pengaturan.
-  int get jumlahDitolak =>
-      riwayat.where((t) => t.status == statusDitolak).length;
+  int get jumlahDitolak {
+    _hitungStatus();
+    return _ditolak;
+  }
 
   int qtyOf(String nama) =>
       items.where((i) => i.nama == nama).fold(0, (a, b) => a + b.qty);
 
+  List<Tiket>? _hariDari;
+  DateTime? _hariTanggal;
+  List<Tiket> _hariIni = const [];
+
   List<Tiket> get tiketHariIni {
-    final k = kunciTanggal(tanggal);
-    return riwayat.where((t) => t.tanggalKunci == k).toList();
+    final tgl = _hariTanggal;
+    if (!identical(_hariDari, riwayat) ||
+        tgl == null ||
+        !_samaHari(tgl, tanggal)) {
+      _hariDari = riwayat;
+      _hariTanggal = tanggal;
+      _hariIni = List.unmodifiable(
+        riwayat.where((t) => _samaHari(t.waktu, tanggal)),
+      );
+    }
+    return _hariIni;
   }
 
-  List<Tiket> get tiketTerpilih => tiketHariIni
-      .where((t) => histFilter == 'semua' || t.mode == histFilter)
-      .toList();
+  List<Tiket> get tiketTerpilih => histFilter == 'semua'
+      ? tiketHariIni
+      : tiketHariIni.where((t) => t.mode == histFilter).toList();
 
   // ---------- siklus hidup ----------
 
@@ -318,9 +450,12 @@ class AppState extends ChangeNotifier {
       if (b != null) {
         brands = b.map((e) => Merek.fromJson(e as Map<String, dynamic>)).toList();
       }
-      riwayat = ((j['riwayat'] ?? []) as List)
-          .map((e) => Tiket.fromJson(e as Map<String, dynamic>))
-          .toList();
+      riwayat = pangkasRiwayat(
+        ((j['riwayat'] ?? []) as List)
+            .map((e) => Tiket.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        DateTime.now(),
+      );
     }
     siapCetak = true;
 
@@ -335,8 +470,11 @@ class AppState extends ChangeNotifier {
     });
     notifyListeners();
     if (online) {
-      unawaited(unggahAntrian(diam: true));
-      unawaited(tarikTiket()); // tiket perangkat lain untuk hari ini
+      // Berurutan: kirim dulu, baru tarik tiket perangkat lain untuk hari
+      // ini. Dijalankan bersamaan, unggah memicu tarikan kedua.
+      unawaited(
+        unggahAntrian(diam: true, tarikSesudah: false).then((_) => tarikTiket()),
+      );
       unawaited(selarasMerek()); // daftar merek bersama
     }
   }
@@ -356,7 +494,11 @@ class AppState extends ChangeNotifier {
       'printerMac': printerMac,
       'printerNama': printerNama,
       'brands': brands.map((e) => e.toJson()).toList(),
-      'riwayat': riwayat.map((e) => e.toJson()).toList(),
+      // Tiket lama yang sedang dilihat tetap ada di memori selama sesi ini,
+      // tapi tidak ikut ditulis ke disk.
+      'riwayat': pangkasRiwayat(riwayat, DateTime.now())
+          .map((e) => e.toJson())
+          .toList(),
     });
   }
 
@@ -372,17 +514,20 @@ class AppState extends ChangeNotifier {
     _toastTimer?.cancel();
     _netSub?.cancel();
     pelangganCtl.dispose();
+    temaGelap.dispose();
+    minyakBufNotifier.dispose();
+    bufNotifier.dispose();
+    toastNotifier.dispose();
     _store.flush();
     super.dispose();
   }
 
+  /// Hanya membangun ulang kotak toast, bukan seluruh aplikasi.
   void tampilToast(String t) {
-    toast = t;
-    notifyListeners();
+    toastNotifier.value = t;
     _toastTimer?.cancel();
     _toastTimer = Timer(const Duration(milliseconds: 2200), () {
-      toast = '';
-      notifyListeners();
+      toastNotifier.value = '';
     });
   }
 
@@ -409,9 +554,11 @@ class AppState extends ChangeNotifier {
     buf = '';
   });
 
-  void tekan(String d) => ubah(() => buf = tekanDigit(buf, d));
+  // Ketukan numpad cukup mengubah ValueNotifier-nya; tidak perlu
+  // notifyListeners.
+  void tekan(String d) => buf = tekanDigit(buf, d);
 
-  void hapusBuf() => ubah(() => buf = '');
+  void hapusBuf() => buf = '';
 
   void konfirmasiQty() {
     final q = int.tryParse(buf) ?? 0;
@@ -447,22 +594,13 @@ class AppState extends ChangeNotifier {
   void hapusItem(int i) => ubah(() => items = List.of(items)..removeAt(i));
   void kosongkanItems() => ubah(() => items = []);
 
-  void tekanMinyak(String d) => ubah(() {
-    minyakBuf = tekanDigit(minyakBuf, d);
-    minyakQty = int.tryParse(minyakBuf) ?? 0;
-  });
+  void tekanMinyak(String d) => minyakBuf = tekanDigit(minyakBuf, d);
 
-  void hapusMinyakDigit() => ubah(() {
-    minyakBuf = minyakBuf.isEmpty
-        ? ''
-        : minyakBuf.substring(0, minyakBuf.length - 1);
-    minyakQty = int.tryParse(minyakBuf) ?? 0;
-  });
+  void hapusMinyakDigit() => minyakBuf = minyakBuf.isEmpty
+      ? ''
+      : minyakBuf.substring(0, minyakBuf.length - 1);
 
-  void resetMinyak() => ubah(() {
-    minyakBuf = '';
-    minyakQty = 0;
-  });
+  void resetMinyak() => minyakBuf = '';
 
   /// Tiket yang sedang disusun — dipakai untuk pratinjau dan pencetakan.
   Tiket get draft => Tiket(
@@ -506,7 +644,6 @@ class AppState extends ChangeNotifier {
       riwayat = [t, ...riwayat];
       printOpen = false;
       items = [];
-      minyakQty = 0;
       minyakBuf = '';
       pelangganCtl.clear();
     }, simpan: true);
@@ -695,14 +832,16 @@ class AppState extends ChangeNotifier {
     }
     ubah(() => _sedangSync = true);
     final sebelumTiket = riwayat.length;
-    final sebelumMerek = merekAktif.length;
+    final sebelumMerek = brands.length;
     try {
-      await unggahAntrian(diam: true);
+      // Tarikan dijalankan di sini, bukan dipicu unggah, supaya hitungan di
+      // bawah dibuat setelah tarikan benar-benar selesai.
+      await unggahAntrian(diam: true, tarikSesudah: false);
       await tarikTiket(diam: true);
       await selarasMerek(diam: true);
 
       final tiketBaru = riwayat.length - sebelumTiket;
-      final merekBaru = merekAktif.length - sebelumMerek;
+      final merekBaru = brands.length - sebelumMerek;
       final bagian = <String>[
         if (tiketBaru > 0) '$tiketBaru tiket baru',
         if (merekBaru != 0) '${merekBaru.abs()} merek berubah',
@@ -716,6 +855,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  final _selaras = SatuJalan();
+
   /// Selaraskan daftar merek dengan server: tarik dulu, lalu kirim hanya baris
   /// yang versinya lebih baru di sini (atau belum ada di sana).
   ///
@@ -723,18 +864,35 @@ class AppState extends ChangeNotifier {
   /// sebelum sync menyala tetap mengunggahnya tanpa petugas harus menyentuh
   /// satu per satu, dan perangkat yang sudah sinkron tidak mengirim apa pun.
   ///
+  /// Paling banyak satu penyelarasan berjalan sekaligus — lihat [SatuJalan].
+  ///
   /// ponytail: satu request per baris yang berubah. Pakai batch API kalau
   /// daftar merek sudah ratusan dan terasa lambat.
-  Future<void> selarasMerek({bool diam = true}) async {
+  Future<void> selarasMerek({bool diam = true}) {
+    if (!online) return Future.value();
+    return _selaras.jalankan(() => _selarasSekali(diam));
+  }
+
+  Future<void> _selarasSekali(bool diam) async {
     if (!online) return;
+    final awal = brands;
     try {
       final dariServer = await _sync.tarikMerek(serverUrl);
-      final hasil = selaraskanMerek(brands, dariServer);
+      final hasil = selaraskanMerek(awal, dariServer);
 
       for (final m in hasil.kirim) {
         await _sync.pushMerek(serverUrl, m);
       }
-      ubah(() => brands = hasil.daftar, simpan: true);
+      // Petugas menambah/mengubah merek selagi request berjalan. Menimpa
+      // `brands` dengan hasil yang dihitung dari daftar lama akan membuang
+      // perubahan itu — hitung ulang saja.
+      if (!identical(brands, awal)) {
+        _selaras.ulangi();
+        return;
+      }
+      if (!_samaMerek(brands, hasil.daftar)) {
+        ubah(() => brands = hasil.daftar, simpan: true);
+      }
       if (!diam) {
         tampilToast(hasil.kirim.isNotEmpty
             ? 'Merek tersinkron · ${hasil.kirim.length} terkirim'
@@ -745,6 +903,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  final _tarik = SatuJalan();
   bool _sedangTarik = false;
 
   /// Sedang mengambil tiket perangkat lain — dipakai untuk indikator di Daftar.
@@ -754,28 +913,49 @@ class AppState extends ChangeNotifier {
   ///
   /// Dipanggil otomatis saat tab Daftar dibuka, tanggal digeser, dan setelah
   /// unggah — supaya petugas tidak perlu tahu ada tombol sinkronisasi.
-  Future<void> tarikTiket({bool diam = true}) async {
-    if (_sedangTarik || !online) {
-      if (!diam && !online) tampilToast('Luring — tidak bisa ambil dari server');
-      return;
+  ///
+  /// Panggilan saat tarikan masih berjalan tidak dibuang: tarikan diulang
+  /// sekali setelahnya. Dulu panggilan itu diabaikan, sehingga menggeser
+  /// tanggal dua kali dengan cepat membuat tanggal kedua tidak pernah ditarik.
+  Future<void> tarikTiket({bool diam = true}) {
+    if (!online) {
+      if (!diam) tampilToast('Luring — tidak bisa ambil dari server');
+      return Future.value();
     }
+    return _tarik.jalankan(() => _tarikSekali(diam));
+  }
+
+  Future<void> _tarikSekali(bool diam) async {
+    if (!online) return;
     final tanggalDiminta = tanggal;
+    final kunci = kunciTanggal(tanggalDiminta);
     ubah(() => _sedangTarik = true);
     try {
       final dariServer = await _sync.tarik(serverUrl, tanggalDiminta);
       // Petugas bisa sudah menggeser tanggal saat request berjalan; hasil yang
       // basi tidak boleh menimpa apa yang sedang dilihat.
-      if (kunciTanggal(tanggalDiminta) != kunciTanggal(tanggal)) return;
-      final punyaLokal = riwayat.map((t) => t.id).toSet();
-      final baru = dariServer.where((t) => !punyaLokal.contains(t.id)).length;
-      final sebelum = riwayat.length;
-      riwayat = buangTiketTerhapus(
+      if (kunci != kunciTanggal(tanggal)) {
+        _tarik.ulangi();
+        return;
+      }
+      final lokal = {for (final t in riwayat) t.id: t};
+      final baru = dariServer.where((t) => !lokal.containsKey(t.id)).length;
+      final hasil = buangTiketTerhapus(
         gabungTiket(riwayat, dariServer),
         dariServer,
-        kunciTanggal(tanggalDiminta),
+        kunci,
       );
-      final dibuang = sebelum + baru - riwayat.length;
-      _simpan();
+      final dibuang = riwayat.length + baru - hasil.length;
+      // Isi tiket yang sudah ada bisa diubah HP lain tanpa jumlahnya berubah.
+      final adaYangBeda = dariServer.any((s) {
+        final l = lokal[s.id];
+        return l != null && !belumTerkirim(l.status) && !samaIsiTiket(l, s);
+      });
+      // Tanpa perubahan, jangan menulis ulang seluruh riwayat ke disk.
+      if (baru > 0 || dibuang > 0 || adaYangBeda) {
+        riwayat = hasil;
+        _simpan();
+      }
       if (!diam) {
         tampilToast(switch ((baru, dibuang)) {
           (0, 0) => 'Sudah terbaru',
@@ -791,7 +971,19 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> unggahAntrian({bool diam = false}) async {
+  final _unggah = SatuJalan();
+
+  /// Kirim tiket yang mengantre. [tarikSesudah] sekalian menarik tiket
+  /// perangkat lain setelahnya.
+  ///
+  /// Paling banyak satu unggahan berjalan sekaligus — tanpa ini, sinyal
+  /// kembali + cetak tiket + tombol sync bisa mengirim tiket yang sama dua
+  /// kali bersamaan. Tiket yang dicetak saat unggahan berjalan ikut terkirim
+  /// pada putaran ulang [SatuJalan].
+  Future<void> unggahAntrian({bool diam = false, bool tarikSesudah = true}) =>
+      _unggah.jalankan(() => _unggahSekali(diam, tarikSesudah));
+
+  Future<void> _unggahSekali(bool diam, bool tarikSesudah) async {
     // Termasuk yang berstatus Ditolak: itu penanda, bukan jalan buntu — tiketnya
     // tetap dicoba lagi supaya ikut masuk begitu skema server diperbaiki.
     final antri = riwayat.where((t) => belumTerkirim(t.status)).toList();
@@ -835,8 +1027,11 @@ class AppState extends ChangeNotifier {
     }
     if (berubah) ubah(() {}, simpan: true);
     // Sekalian ambil punya perangkat lain — sekali tekan "Unggah sekarang"
-    // menyelesaikan kedua arah.
-    if (berhasil > 0 || ditolak == 0) unawaited(tarikTiket());
+    // menyelesaikan kedua arah. Kalau server tak terjangkau, tarikan juga
+    // pasti gagal; tidak usah dicoba.
+    if (tarikSesudah && (berhasil > 0 || galat == null)) {
+      unawaited(tarikTiket());
+    }
     if (diam) return;
 
     tampilToast(switch ((galat, ditolak)) {
