@@ -23,14 +23,30 @@ Build otomatis lewat GitHub Actions (`.github/workflows/release.yml`):
 | Windows x64 | `TiketAlamat-windows-x64.zip` | ya |
 | Linux x64 | `TiketAlamat-linux-x64.tar.gz` | ya |
 | macOS | `TiketAlamat-macos.zip` | ya, tapi belum ditandatangani Apple |
-| iOS | `TiketAlamat-ios-unsigned.zip` | **tidak** — lihat di bawah |
+| iOS | `TiketAlamat-ios-unsigned.ipa` | lewat sideload, lihat di bawah |
 
-> **iOS tidak bisa dipasang dari berkas ini.** Apple mewajibkan aplikasi
-> ditandatangani sertifikat berbayar (Apple Developer Program, ~$99/tahun) dan
-> disebarkan lewat TestFlight atau App Store. Berkas yang dihasilkan CI dibangun
-> `--no-codesign`, jadi gunanya hanya membuktikan kodenya tetap terkompilasi
-> untuk iOS. Kalau nanti perlu iPhone di gudang, yang dibutuhkan adalah akun
-> developer Apple, bukan perubahan kode.
+> **iOS: pasang lewat sideload, bisa dari Windows.** Berkas `.ipa` dibangun
+> `--no-codesign`, jadi perlu ditandatangani saat dipasang:
+>
+> 1. Pasang **iTunes** dan **iCloud** versi unduhan langsung dari situs Apple
+>    (bukan Microsoft Store) — dibutuhkan untuk driver iPhone.
+> 2. Buka **Sideloadly** (sideloadly.io), colok iPhone, pilih
+>    `TiketAlamat-ios-unsigned.ipa`, isi Apple ID (sebaiknya akun cadangan),
+>    lalu Start. **AltStore + AltServer** (altstore.io) juga bisa, dan
+>    memperpanjang otomatis lewat Wi-Fi.
+> 3. Di iPhone: Pengaturan → Umum → VPN & Manajemen Perangkat → percayai
+>    profilnya. iOS 16+: nyalakan Pengaturan → Privasi & Keamanan → Mode
+>    Pengembang, lalu restart.
+>
+> Dengan Apple ID gratis, aplikasi berhenti jalan setelah **7 hari** dan harus
+> dipasang ulang (data tetap ada bila Apple ID-nya sama); maksimal 3 aplikasi
+> sideload per Apple ID. Untuk pemakaian tetap: Apple Developer Program
+> (~$99/tahun) lalu TestFlight.
+>
+> **Cetak di iPhone kemungkinan tidak jalan:** di iOS, `print_bluetooth_thermal`
+> hanya memakai Bluetooth LE, sedangkan printer thermal seperti RPP02N umumnya
+> Bluetooth klasik (SPP) yang tidak boleh dipakai aplikasi biasa di iPhone.
+> Input, Daftar, dan sync tetap jalan. Tombol "Unduh APK" tidak berlaku di iOS.
 >
 > **macOS** ikut dibangun tanpa tanda tangan. Saat pertama dibuka, macOS akan
 > menolaknya — klik kanan berkasnya lalu pilih **Open** untuk melewati

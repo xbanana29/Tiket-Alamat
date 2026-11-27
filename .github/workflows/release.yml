@@ -173,18 +173,22 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      # --no-codesign: repo ini tidak punya sertifikat Apple. Hasilnya .app
-      # yang TIDAK bisa dipasang ke iPhone — hanya bukti bahwa kodenya
-      # tetap terkompilasi untuk iOS. Lihat README.
+      # --no-codesign: repo ini tidak punya sertifikat Apple. Hasilnya .ipa
+      # tanpa tanda tangan; Sideloadly/AltStore menandatanganinya dengan
+      # Apple ID gratis saat dipasang (berlaku 7 hari). Lihat README.
       - run: flutter build ios --release --no-codesign --build-name=${{ needs.periksa.outputs.versi }} --build-number=${{ github.run_number }}
-      - name: Bundel
+      # .ipa = zip berisi Payload/Runner.app. Langsung bisa dipilih di
+      # Sideloadly/AltStore tanpa membongkar dan mengemas ulang.
+      - name: Bundel .ipa
         run: |
           cd build/ios/iphoneos
-          ditto -c -k --keepParent --sequesterRsrc Runner.app "$GITHUB_WORKSPACE/TiketAlamat-ios-unsigned.zip"
+          mkdir Payload
+          cp -R Runner.app Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload "$GITHUB_WORKSPACE/TiketAlamat-ios-unsigned.ipa"
       - uses: actions/upload-artifact@v4
         with:
           name: ios
-          path: TiketAlamat-ios-unsigned.zip
+          path: TiketAlamat-ios-unsigned.ipa
 
   release:
     name: Terbitkan Release
