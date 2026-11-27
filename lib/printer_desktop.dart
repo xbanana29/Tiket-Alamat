@@ -71,9 +71,13 @@ class PrinterDesktop {
     }
     p.stdin.add(bytes);
     await p.stdin.close();
-    final galat = await p.stderr.transform(const Utf8Decoder(allowMalformed: true)).join();
+    final galat = await p.stderr
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .join();
     if (await p.exitCode != 0) {
-      throw CetakGagal('lp gagal: ${galat.trim().isEmpty ? "tanpa pesan" : galat.trim()}');
+      throw CetakGagal(
+        'lp gagal: ${galat.trim().isEmpty ? "tanpa pesan" : galat.trim()}',
+      );
     }
   }
 
@@ -88,32 +92,45 @@ class PrinterDesktop {
       '(Get-Printer).Name',
     ]);
     if (r.exitCode != 0) return const [];
-    return LineSplitter.split(r.stdout.toString())
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    return LineSplitter.split(
+      r.stdout.toString(),
+    ).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
   static void _kirimWindows(String antrean, List<int> bytes) {
     final spool = DynamicLibrary.open('winspool.drv');
 
-    final openPrinter = spool.lookupFunction<
-        Int32 Function(Pointer<Utf16>, Pointer<IntPtr>, Pointer<Void>),
-        int Function(Pointer<Utf16>, Pointer<IntPtr>, Pointer<Void>)>('OpenPrinterW');
-    final startDoc = spool.lookupFunction<
-        Int32 Function(IntPtr, Uint32, Pointer<_DocInfo1>),
-        int Function(int, int, Pointer<_DocInfo1>)>('StartDocPrinterW');
-    final startPage = spool.lookupFunction<Int32 Function(IntPtr),
-        int Function(int)>('StartPagePrinter');
-    final writePrinter = spool.lookupFunction<
-        Int32 Function(IntPtr, Pointer<Uint8>, Uint32, Pointer<Uint32>),
-        int Function(int, Pointer<Uint8>, int, Pointer<Uint32>)>('WritePrinter');
-    final endPage = spool.lookupFunction<Int32 Function(IntPtr),
-        int Function(int)>('EndPagePrinter');
-    final endDoc = spool.lookupFunction<Int32 Function(IntPtr),
-        int Function(int)>('EndDocPrinter');
-    final closePrinter = spool.lookupFunction<Int32 Function(IntPtr),
-        int Function(int)>('ClosePrinter');
+    final openPrinter = spool
+        .lookupFunction<
+          Int32 Function(Pointer<Utf16>, Pointer<IntPtr>, Pointer<Void>),
+          int Function(Pointer<Utf16>, Pointer<IntPtr>, Pointer<Void>)
+        >('OpenPrinterW');
+    final startDoc = spool
+        .lookupFunction<
+          Int32 Function(IntPtr, Uint32, Pointer<_DocInfo1>),
+          int Function(int, int, Pointer<_DocInfo1>)
+        >('StartDocPrinterW');
+    final startPage = spool
+        .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+          'StartPagePrinter',
+        );
+    final writePrinter = spool
+        .lookupFunction<
+          Int32 Function(IntPtr, Pointer<Uint8>, Uint32, Pointer<Uint32>),
+          int Function(int, Pointer<Uint8>, int, Pointer<Uint32>)
+        >('WritePrinter');
+    final endPage = spool
+        .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+          'EndPagePrinter',
+        );
+    final endDoc = spool
+        .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+          'EndDocPrinter',
+        );
+    final closePrinter = spool
+        .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+          'ClosePrinter',
+        );
 
     final namaPrinter = antrean.toNativeUtf16();
     final pegangan = calloc<IntPtr>();

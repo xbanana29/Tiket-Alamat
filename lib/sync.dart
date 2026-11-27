@@ -63,8 +63,11 @@ class Sync {
     // waktu lokal — batasnya harus dikonversi, bukan dipotong mentah.
     final mulai = DateTime(tanggal.year, tanggal.month, tanggal.day).toUtc();
     final selesai = mulai.add(const Duration(days: 1));
-    final rekaman = await _client(url).collection('tiket').getFullList(
-          filter: 'waktu >= "${_pbWaktu(mulai)}" && waktu < "${_pbWaktu(selesai)}"',
+    final rekaman = await _client(url)
+        .collection('tiket')
+        .getFullList(
+          filter:
+              'waktu >= "${_pbWaktu(mulai)}" && waktu < "${_pbWaktu(selesai)}"',
         );
     return rekaman.map(_keTiket).toList();
   }
@@ -79,8 +82,9 @@ class Sync {
       id: d['tiket_id'] as String,
       pelanggan: d['pelanggan'] as String,
       // Server mengirim "2026-08-01 19:35:42.705Z" — spasi, bukan 'T'.
-      waktu: DateTime.parse((d['waktu'] as String).replaceFirst(' ', 'T'))
-          .toLocal(),
+      waktu: DateTime.parse(
+        (d['waktu'] as String).replaceFirst(' ', 'T'),
+      ).toLocal(),
       petugas: d['petugas'] as String? ?? '',
       mode: d['mode'] as String,
       items: ((d['items'] ?? []) as List)

@@ -18,25 +18,15 @@ class TabPesanan extends StatelessWidget {
     final kb = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: ink, width: 2)),
-          ),
-          child: Segmen(
-            labels: const ['Sak', 'Minyak'],
-            terpilih: s.isMinyak ? 1 : 0,
-            onPilih: (i) => s.ubah(() => s.mode = i == 0 ? 'sak' : 'minyak'),
-            fontSize: f * .85,
-            berbingkai: false,
-            align: TextAlign.left,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          ),
+        Segmen(
+          labels: const ['Sak', 'Minyak'],
+          terpilih: s.isMinyak ? 1 : 0,
+          onPilih: (i) => s.ubah(() => s.mode = i == 0 ? 'sak' : 'minyak'),
+          fontSize: f * .88,
+          berbingkai: false,
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: divider)),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -49,37 +39,55 @@ class TabPesanan extends StatelessWidget {
         Expanded(
           child: s.isMinyak ? _Minyak(kb: kb) : _Sak(kb: kb),
         ),
+        // Bar cetak hijau penuh, seperti bar keranjang kasir AmePOS: aksi
+        // dan jumlahnya dalam satu target ketuk.
         if (!kb)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: ink, width: 2)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TombolAksi('Cetak tiket', onTap: s.bukaPratinjau),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  color: neutral200,
-                  // Jumlah jerigen berubah tiap ketukan numpad Minyak, yang
-                  // tidak lagi memicu notifyListeners.
-                  child: ValueListenableBuilder(
-                    valueListenable: s.minyakBufNotifier,
-                    builder: (_, _, _) => Text(
-                      (s.isMinyak
-                              ? '${s.minyakQty} jerigen'
-                              : '${s.totalSak} sak')
-                          .toUpperCase(),
-                      style: TextStyle(
-                        fontSize: f * .74,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: f * .74 * .06,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            child: Material(
+              color: accent,
+              borderRadius: BorderRadius.circular(Sudut.md),
+              child: InkWell(
+                onTap: s.bukaPratinjau,
+                borderRadius: BorderRadius.circular(Sudut.md),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 15,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.print_outlined, color: onAccent),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Cetak tiket',
+                        style: TextStyle(
+                          fontSize: f * .95,
+                          fontWeight: FontWeight.w700,
+                          color: onAccent,
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      // Jumlah jerigen berubah tiap ketukan numpad Minyak,
+                      // yang tidak lagi memicu notifyListeners.
+                      ValueListenableBuilder(
+                        valueListenable: s.minyakBufNotifier,
+                        builder: (_, _, _) => Text(
+                          s.isMinyak
+                              ? '${s.minyakQty} jerigen'
+                              : '${s.totalSak} sak',
+                          style: TextStyle(
+                            fontSize: f * .9,
+                            fontWeight: FontWeight.w600,
+                            color: onAccent,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
       ],
@@ -123,9 +131,10 @@ class _Minyak extends StatelessWidget {
                             valueListenable: s.minyakBufNotifier,
                             builder: (_, buf, _) => Text(
                               buf.isEmpty ? '0' : buf,
-                              style: heading(angkaFs, height: .9).copyWith(
-                                letterSpacing: -angkaFs * .04,
-                              ),
+                              style: heading(
+                                angkaFs,
+                                height: .9,
+                              ).copyWith(letterSpacing: -angkaFs * .04),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -152,10 +161,8 @@ class _Minyak extends StatelessWidget {
           ),
         ),
         if (!kb)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: ink, width: 2)),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7),
             child: Numpad(
               kolom: 3,
               onDigit: s.tekanMinyak,
@@ -183,14 +190,14 @@ class _Sak extends StatelessWidget {
       children: [
         Flexible(
           child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: neutral100,
-              border: kb
-                  ? null
-                  : Border(bottom: BorderSide(color: ink, width: 2)),
+              color: neutral200,
+              borderRadius: BorderRadius.circular(Sudut.lg),
             ),
+            clipBehavior: Clip.antiAlias,
             child: const SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: EdgeInsets.all(10),
               child: _StrukHidup(),
             ),
           ),
@@ -217,10 +224,11 @@ class _KolomPelanggan extends StatelessWidget {
       onTap: () => _bukaDialogPelanggan(context, s),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
           color: fieldFill,
           border: Border.all(color: divider),
+          borderRadius: BorderRadius.circular(Sudut.md),
         ),
         child: ValueListenableBuilder(
           valueListenable: s.pelangganCtl,
@@ -277,23 +285,19 @@ class _DialogPelangganState extends State<_DialogPelanggan> {
   Widget build(BuildContext context) {
     final f = fs(context);
     return Dialog(
-      backgroundColor: bg,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: ink, width: 2),
-        borderRadius: BorderRadius.zero,
-      ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const LabelMikro('Nama pelanggan'),
-                const SizedBox(height: 8),
+                Text('Nama pelanggan', style: heading(f * 1.1)),
+                const SizedBox(height: 12),
                 TextField(
                   controller: ctl,
                   // Keyboard langsung muncul; petugas tidak perlu mengetuk lagi.
@@ -301,7 +305,6 @@ class _DialogPelangganState extends State<_DialogPelanggan> {
                   textCapitalization: TextCapitalization.characters,
                   autocorrect: false,
                   enableSuggestions: false,
-                  cursorColor: accent,
                   // Tombol Enter di keyboard sama artinya dengan menekan OK.
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _simpan(),
@@ -343,7 +346,7 @@ class _GridMerek extends StatelessWidget {
 
   static const _baris = 3;
   static const _kolom = 3;
-  static const _pad = 10.0;
+  static const _pad = 12.0;
   static const _spasi = 8.0;
 
   @override
@@ -355,8 +358,10 @@ class _GridMerek extends StatelessWidget {
         builder: (_, box) {
           final tersedia = box.maxHeight.isFinite ? box.maxHeight : 280.0;
           final tinggiTile =
-              ((tersedia - _pad * 2 - _spasi * (_baris - 1)) / _baris)
-                  .clamp(48.0, 140.0);
+              ((tersedia - _pad * 2 - _spasi * (_baris - 1)) / _baris).clamp(
+                48.0,
+                140.0,
+              );
           final muatSemua = merek.length <= _baris * _kolom;
           return GridView.builder(
             padding: const EdgeInsets.all(_pad),
@@ -386,19 +391,31 @@ class _TileMerek extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final f = fs(context);
-    return Tap(
-      onTap: () => s.bukaKeypad(merek.nama),
-      child: Container(
-        decoration: BoxDecoration(
-          color: qty > 0 ? accent200 : bg,
-          border: Border.all(color: ink, width: 2),
+    final dipilih = qty > 0;
+    final r = BorderRadius.circular(Sudut.md);
+    // Kartu merek: terpilih = tint hijau + bingkai hijau, seperti segmen
+    // terpilih AmePOS. Bingkai tetap ada di keduanya supaya ukuran tidak
+    // melompat saat dipilih.
+    return Material(
+      color: dipilih ? accent200 : surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: r,
+        side: BorderSide(
+          color: dipilih ? accent : divider,
+          width: dipilih ? 1.5 : 1,
         ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => s.bukaKeypad(merek.nama),
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: accent.withValues(alpha: .14),
         child: Stack(
           children: [
             Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 // Tile kini lebih pendek; nama sepanjang "GULA PASIR RAJA"
                 // harus terpotong rapi, bukan meluap jadi garis merah.
                 child: Text(
@@ -406,25 +423,35 @@ class _TileMerek extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: f * 1.05,
+                    fontSize: f * 1.02,
                     fontWeight: FontWeight.w700,
                     height: 1.15,
-                    letterSpacing: f * 1.05 * .02,
+                    color: dipilih ? accent800 : ink,
                   ),
                 ),
               ),
             ),
-            if (qty > 0)
+            if (dipilih)
               Positioned(
-                top: 0,
-                right: 0,
+                top: 6,
+                right: 6,
                 child: Container(
+                  constraints: const BoxConstraints(minWidth: 26),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
+                    horizontal: 7,
+                    vertical: 2,
                   ),
-                  color: ink,
-                  child: Text('$qty', style: heading(f * 1.1, color: bg)),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(Sudut.sm),
+                  ),
+                  child: Text(
+                    '$qty',
+                    textAlign: TextAlign.center,
+                    style: heading(f * 1.05, color: onAccent).copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -454,7 +481,7 @@ class _StrukHidup extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
       decoration: BoxDecoration(
         color: paper,
-        border: Border.all(color: paperInk.withValues(alpha: .25)),
+        borderRadius: BorderRadius.circular(Sudut.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -483,14 +510,22 @@ class _StrukHidup extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(fmtWaktuCetak(DateTime.now()),
-              textAlign: TextAlign.center, style: kecil),
-          Text('Petugas: ${s.petugas}',
-              textAlign: TextAlign.center, style: kecil),
+          Text(
+            fmtWaktuCetak(DateTime.now()),
+            textAlign: TextAlign.center,
+            style: kecil,
+          ),
+          Text(
+            'Petugas: ${s.petugas}',
+            textAlign: TextAlign.center,
+            style: kecil,
+          ),
           const _Putus(),
           if (s.items.isEmpty)
-            Text('— belum ada barang —',
-                style: kecil.copyWith(color: paperMuted)),
+            Text(
+              '— belum ada barang —',
+              style: kecil.copyWith(color: paperMuted),
+            ),
           // Ukuran mengikuti hasil cetak (ESC/POS 1x, tebal) supaya yang
           // terlihat di layar sama dengan yang keluar dari printer.
           for (var i = 0; i < s.items.length; i++)
@@ -509,8 +544,10 @@ class _StrukHidup extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('TOTAL', style: kecil.copyWith(fontWeight: FontWeight.w700)),
-              Text('${s.totalSak} sak',
-                  style: kecil.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                '${s.totalSak} sak',
+                style: kecil.copyWith(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
         ],
@@ -572,21 +609,29 @@ class KeypadSheet extends StatelessWidget {
           right: 0,
           bottom: 0,
           child: Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.paddingOf(context).bottom + 6,
+            ),
             decoration: BoxDecoration(
-              color: bg,
-              border: Border(top: BorderSide(color: ink, width: 2)),
+              color: Theme.of(context).dialogTheme.backgroundColor ?? surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(Sudut.xl),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+                  width: 32,
+                  height: 4,
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: divider)),
+                    color: neutral500.withValues(alpha: .5),
+                    borderRadius: BorderRadius.circular(2),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -608,32 +653,41 @@ class KeypadSheet extends StatelessWidget {
                         valueListenable: s.bufNotifier,
                         builder: (_, buf, _) => Text(
                           buf.isEmpty ? '0' : buf,
-                          style: heading(f * 2.2, height: 1),
+                          style: heading(f * 2.2, height: 1, color: accent700)
+                              .copyWith(
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                // 3 kolom, sama persis dengan numpad Minyak: 1-2-3 / 4-5-6 /
-                // 7-8-9 / C-0-aksi. Petugas berpindah antar mode sepanjang
-                // hari, jadi letak angkanya tidak boleh berubah.
-                ValueListenableBuilder(
-                  valueListenable: s.bufNotifier,
-                  builder: (_, buf, _) {
-                    // Sudah punya isi lalu dikonfirmasi 0 = batalkan barangnya.
-                    final akanBatal =
-                        qtySekarang > 0 && (int.tryParse(buf) ?? 0) == 0;
-                    return Numpad(
-                      kolom: 3,
-                      onDigit: s.tekan,
-                      onClear: s.hapusBuf,
-                      onAkhir: s.konfirmasiQty,
-                      // Barang yang sudah dipilih + angka 0 = dibatalkan.
-                      // Tombolnya ikut berubah supaya petugas tahu itu
-                      // sebelum menekan.
-                      labelAkhir: akanBatal ? '✕' : '✓',
-                    );
-                  },
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  child:
+                      // 3 kolom, sama persis dengan numpad Minyak: 1-2-3 / 4-5-6 /
+                      // 7-8-9 / C-0-aksi. Petugas berpindah antar mode sepanjang
+                      // hari, jadi letak angkanya tidak boleh berubah.
+                      ValueListenableBuilder(
+                        valueListenable: s.bufNotifier,
+                        builder: (_, buf, _) {
+                          // Sudah punya isi lalu dikonfirmasi 0 = batalkan barangnya.
+                          final akanBatal =
+                              qtySekarang > 0 && (int.tryParse(buf) ?? 0) == 0;
+                          return Numpad(
+                            kolom: 3,
+                            onDigit: s.tekan,
+                            onClear: s.hapusBuf,
+                            onAkhir: s.konfirmasiQty,
+                            // Barang yang sudah dipilih + angka 0 = dibatalkan.
+                            // Tombolnya ikut berubah supaya petugas tahu itu
+                            // sebelum menekan.
+                            labelAkhir: akanBatal ? '✕' : '✓',
+                          );
+                        },
+                      ),
                 ),
               ],
             ),
@@ -728,23 +782,35 @@ class KertasStruk extends StatelessWidget {
             style: heading(f * .76 * 2.2, height: 1.1, color: paperInk),
           ),
           const SizedBox(height: 10),
-          Text(fmtWaktuCetak(tiket.waktu),
-              textAlign: TextAlign.center, style: kecil),
-          Text('Petugas: ${tiket.petugas}',
-              textAlign: TextAlign.center, style: kecil),
+          Text(
+            fmtWaktuCetak(tiket.waktu),
+            textAlign: TextAlign.center,
+            style: kecil,
+          ),
+          Text(
+            'Petugas: ${tiket.petugas}',
+            textAlign: TextAlign.center,
+            style: kecil,
+          ),
           const _Putus(),
           if (tiket.isMinyak)
             Column(
               children: [
                 Text(
                   '${tiket.jerigen}',
-                  style: heading(f * .76 * 8.5, height: .88, color: paperInk)
-                      .copyWith(letterSpacing: -f * .76 * 8.5 * .05),
+                  style: heading(
+                    f * .76 * 8.5,
+                    height: .88,
+                    color: paperInk,
+                  ).copyWith(letterSpacing: -f * .76 * 8.5 * .05),
                 ),
                 Text(
                   'JERIGEN MINYAK',
-                  style: heading(f * .76 * 1.7, height: 1.1, color: paperInk)
-                      .copyWith(letterSpacing: f * .76 * 1.7 * .06),
+                  style: heading(
+                    f * .76 * 1.7,
+                    height: 1.1,
+                    color: paperInk,
+                  ).copyWith(letterSpacing: f * .76 * 1.7 * .06),
                 ),
               ],
             )
@@ -763,17 +829,16 @@ class KertasStruk extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('TOTAL', style: kecil.copyWith(fontWeight: FontWeight.w700)),
-              Text(tiket.totalLabel,
-                  style: kecil.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                tiket.totalLabel,
+                style: kecil.copyWith(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             'Tanda terima gudang · tusuk di paku setelah barang keluar',
-            style: kecil.copyWith(
-              fontSize: f * .68,
-              color: paperMuted,
-            ),
+            style: kecil.copyWith(fontSize: f * .68, color: paperMuted),
           ),
         ],
       ),

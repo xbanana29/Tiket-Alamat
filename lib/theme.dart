@@ -1,15 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Palet neo-brutalist (radius 0, border tegas). Light & dark.
+// Tema mengikuti AmePOS varian online/HP (amepos/app/lib/online/theme/
+// online_theme.dart): Material 3 dengan seed hijau, kartu dan tombol
+// membulat, mode Sistem/Terang/Gelap. Nama token lama (ink, bg, accent, …)
+// dipertahankan supaya pemanggil di seluruh UI ikut berganti tanpa diubah satu
+// per satu.
+
+/// Hijau brand AmePOS.
+const kAksen = Color(0xFF00A86B);
+const kAksenGelap = Color(0xFF2DD4A0);
+
+/// Radius baku AmePOS online.
+abstract final class Sudut {
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 22.0;
+}
+
 class AppPalette extends ThemeExtension<AppPalette> {
+  /// Teks utama.
   final Color ink;
+
+  /// Latar layar.
   final Color bg;
+
+  /// Kartu dan panel di atas [bg].
   final Color surface;
+
+  /// Hijau brand: tombol utama, status, seleksi.
   final Color accent;
+
+  /// Latar elemen terpilih (tint hijau).
   final Color accent200;
+
+  /// Teks aksi dan teks di atas [accent200].
   final Color accent700;
   final Color accent800;
+
+  /// Teks/ikon di atas [accent].
+  final Color onAccent;
+
   final Color neutral100;
   final Color neutral200;
   final Color neutral500;
@@ -19,8 +51,23 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color hijau;
   final Color fieldFill;
   final Color sheetScrim;
+  final Color toastBg;
   final Color toastFg;
-  /// Kertas struk pratinjau — selalu "kertas putih" di light & dark.
+
+  /// Tombol numpad (secondaryContainer di AmePOS).
+  final Color tombolBg;
+  final Color tombolFg;
+
+  /// Garis dan bingkai tipis.
+  final Color garis;
+
+  /// Merah untuk aksi merusak dan galat.
+  final Color bahaya;
+
+  /// Kuning tua untuk peringatan (antrean, luring).
+  final Color waspada;
+
+  /// Kertas struk pratinjau — selalu "kertas putih" di terang & gelap.
   final Color paper;
   final Color paperInk;
   final Color paperMuted;
@@ -34,6 +81,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.accent200,
     required this.accent700,
     required this.accent800,
+    required this.onAccent,
     required this.neutral100,
     required this.neutral200,
     required this.neutral500,
@@ -43,126 +91,84 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.hijau,
     required this.fieldFill,
     required this.sheetScrim,
+    required this.toastBg,
     required this.toastFg,
+    required this.tombolBg,
+    required this.tombolFg,
+    required this.garis,
+    required this.bahaya,
+    required this.waspada,
     required this.paper,
     required this.paperInk,
     required this.paperMuted,
     required this.brightness,
   });
 
-  Color get divider => ink.withValues(alpha: brightness == Brightness.dark ? .35 : .4);
+  /// Diturunkan dari ColorScheme yang sama dengan ThemeData, jadi warna
+  /// komponen Material dan widget buatan sendiri selalu sepakat.
+  factory AppPalette.dari(ColorScheme s, {required bool gelap}) {
+    final aksen = gelap ? kAksenGelap : kAksen;
+    Color atas(Color c, double a) =>
+        Color.alphaBlend(c.withValues(alpha: a), s.surface);
+    final waspada = gelap ? const Color(0xFFF5B544) : const Color(0xFFB45309);
+    return AppPalette(
+      ink: s.onSurface,
+      bg: s.surface,
+      surface: gelap ? atas(s.surfaceContainerHighest, .45) : Colors.white,
+      accent: aksen,
+      accent200: atas(aksen, gelap ? .28 : .14),
+      accent700: gelap ? aksen : const Color(0xFF04593B),
+      accent800: gelap ? s.onSurface : const Color(0xFF04593B),
+      onAccent: gelap ? const Color(0xFF052E1F) : Colors.white,
+      neutral100: s.surfaceContainerLow,
+      neutral200: s.surfaceContainerHigh,
+      neutral500: s.outline,
+      neutral600: s.onSurfaceVariant,
+      neutral700: s.onSurfaceVariant,
+      neutral800: s.onSurface,
+      hijau: aksen,
+      fieldFill: atas(s.surfaceContainerHighest, gelap ? .5 : .35),
+      sheetScrim: s.scrim.withValues(alpha: gelap ? .55 : .32),
+      toastBg: s.inverseSurface,
+      toastFg: s.onInverseSurface,
+      tombolBg: s.secondaryContainer,
+      tombolFg: s.onSecondaryContainer,
+      garis: atas(s.outlineVariant, gelap ? .35 : .7),
+      bahaya: s.error,
+      waspada: waspada,
+      paper: Colors.white,
+      paperInk: const Color(0xFF14302A),
+      paperMuted: const Color(0xFF6B7C76),
+      brightness: gelap ? Brightness.dark : Brightness.light,
+    );
+  }
 
-  /// Badge status antrian — teks tetap terbaca di kedua mode.
-  Color get badgeAntriBg =>
-      brightness == Brightness.dark ? const Color(0xFF3D2A08) : accent200;
-  Color get badgeAntriFg =>
-      brightness == Brightness.dark ? const Color(0xFFFFA31A) : accent800;
-  Color get badgeOkBg => neutral200;
-  Color get badgeOkFg => ink;
+  Color get divider => garis;
 
-  /// Badge tiket yang ditolak server — merah, harus beda dari kuning "antri".
-  Color get badgeTolakBg =>
-      brightness == Brightness.dark ? const Color(0xFF4A1108) : const Color(0xFFFFDAD4);
-  Color get badgeTolakFg =>
-      brightness == Brightness.dark ? const Color(0xFFFF7A5E) : const Color(0xFF8C1200);
+  /// Chip status: tint 14% dari warna nadanya, teks berwarna nadanya —
+  /// sama dengan `OnlineStatusChip` AmePOS.
+  Color get badgeAntriBg => waspada.withValues(alpha: .14);
+  Color get badgeAntriFg => waspada;
+  Color get badgeOkBg => accent.withValues(alpha: .14);
+  Color get badgeOkFg => accent700;
+  Color get badgeTolakBg => bahaya.withValues(alpha: .14);
+  Color get badgeTolakFg => bahaya;
 
-  static const light = AppPalette(
-    ink: Color(0xFF201E1D),
-    bg: Color(0xFFF3F2F2),
-    surface: Color(0xFFEAE9E9),
-    accent: Color(0xFFEC3013),
-    accent200: Color(0xFFFFE0D9),
-    accent700: Color(0xFFAE1800),
-    accent800: Color(0xFF7C1405),
-    neutral100: Color(0xFFF8F4F4),
-    neutral200: Color(0xFFE7E3E3),
-    neutral500: Color(0xFF8A8585),
-    neutral600: Color(0xFF6E6A6A),
-    neutral700: Color(0xFF4F4C4C),
-    neutral800: Color(0xFF3B3939),
-    hijau: Color(0xFF2F7D32),
-    fieldFill: Color(0xFFFFFFFF),
-    sheetScrim: Color(0x99201E1D),
-    toastFg: Color(0xFFF3F2F2),
-    paper: Color(0xFFFFFFFF),
-    paperInk: Color(0xFF201E1D),
-    paperMuted: Color(0xFF6E6A6A),
-    brightness: Brightness.light,
+  static final _skemaTerang = ColorScheme.fromSeed(
+    seedColor: kAksen,
+    surface: const Color(0xFFF7FAF8),
   );
-
-  /// Dark mode — palet brand:
-  /// #FFA31A aksen, #808080 abu, #292929 surface, #1B1B1B bg, #FFFFFF teks.
-  static const dark = AppPalette(
-    ink: Color(0xFFFFFFFF), // #ffffff
-    bg: Color(0xFF1B1B1B), // #1b1b1b
-    surface: Color(0xFF292929), // #292929
-    accent: Color(0xFFFFA31A), // #ffa31a
-    accent200: Color(0xFF3D2A08), // aksen redup di atas bg gelap
-    accent700: Color(0xFFFFB84D), // aksen lebih terang (hover/link)
-    accent800: Color(0xFFFFA31A), // #ffa31a
-    neutral100: Color(0xFF292929), // #292929
-    neutral200: Color(0xFF292929), // #292929
-    neutral500: Color(0xFF808080), // #808080
-    neutral600: Color(0xFF808080), // #808080
-    neutral700: Color(0xFFB0B0B0), // abu lebih terang dari #808080
-    neutral800: Color(0xFFE0E0E0), // hampir putih
-    hijau: Color(0xFFFFA31A), // status daring pakai aksen brand
-    fieldFill: Color(0xFF292929), // #292929
-    sheetScrim: Color(0xCC1B1B1B),
-    toastFg: Color(0xFF1B1B1B), // teks di toast (bg putih/ink)
-    paper: Color(0xFFFFFFFF),
-    paperInk: Color(0xFF1B1B1B),
-    paperMuted: Color(0xFF808080),
+  static final _skemaGelap = ColorScheme.fromSeed(
+    seedColor: kAksenGelap,
     brightness: Brightness.dark,
+    surface: const Color(0xFF111714),
   );
+
+  static final light = AppPalette.dari(_skemaTerang, gelap: false);
+  static final dark = AppPalette.dari(_skemaGelap, gelap: true);
 
   @override
-  AppPalette copyWith({
-    Color? ink,
-    Color? bg,
-    Color? surface,
-    Color? accent,
-    Color? accent200,
-    Color? accent700,
-    Color? accent800,
-    Color? neutral100,
-    Color? neutral200,
-    Color? neutral500,
-    Color? neutral600,
-    Color? neutral700,
-    Color? neutral800,
-    Color? hijau,
-    Color? fieldFill,
-    Color? sheetScrim,
-    Color? toastFg,
-    Color? paper,
-    Color? paperInk,
-    Color? paperMuted,
-    Brightness? brightness,
-  }) =>
-      AppPalette(
-        ink: ink ?? this.ink,
-        bg: bg ?? this.bg,
-        surface: surface ?? this.surface,
-        accent: accent ?? this.accent,
-        accent200: accent200 ?? this.accent200,
-        accent700: accent700 ?? this.accent700,
-        accent800: accent800 ?? this.accent800,
-        neutral100: neutral100 ?? this.neutral100,
-        neutral200: neutral200 ?? this.neutral200,
-        neutral500: neutral500 ?? this.neutral500,
-        neutral600: neutral600 ?? this.neutral600,
-        neutral700: neutral700 ?? this.neutral700,
-        neutral800: neutral800 ?? this.neutral800,
-        hijau: hijau ?? this.hijau,
-        fieldFill: fieldFill ?? this.fieldFill,
-        sheetScrim: sheetScrim ?? this.sheetScrim,
-        toastFg: toastFg ?? this.toastFg,
-        paper: paper ?? this.paper,
-        paperInk: paperInk ?? this.paperInk,
-        paperMuted: paperMuted ?? this.paperMuted,
-        brightness: brightness ?? this.brightness,
-      );
+  AppPalette copyWith() => this;
 
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
@@ -171,12 +177,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   }
 }
 
-/// Palet aktif — di-set MaterialApp.builder. UI pakai getter di bawah.
+/// Palet aktif — di-set MaterialApp.builder dari tema yang sedang dipakai.
 AppPalette _p = AppPalette.light;
 
 void applyPalette(AppPalette p) => _p = p;
 
-// Token global (kompatibel file lama; ikut dark/light).
+// Token global (ikut terang/gelap).
 Color get ink => _p.ink;
 Color get bg => _p.bg;
 Color get surface => _p.surface;
@@ -184,6 +190,7 @@ Color get accent => _p.accent;
 Color get accent200 => _p.accent200;
 Color get accent700 => _p.accent700;
 Color get accent800 => _p.accent800;
+Color get onAccent => _p.onAccent;
 Color get neutral100 => _p.neutral100;
 Color get neutral200 => _p.neutral200;
 Color get neutral500 => _p.neutral500;
@@ -194,7 +201,12 @@ Color get hijau => _p.hijau;
 Color get divider => _p.divider;
 Color get fieldFill => _p.fieldFill;
 Color get sheetScrim => _p.sheetScrim;
+Color get toastBg => _p.toastBg;
 Color get toastFg => _p.toastFg;
+Color get tombolBg => _p.tombolBg;
+Color get tombolFg => _p.tombolFg;
+Color get bahaya => _p.bahaya;
+Color get waspada => _p.waspada;
 Color get paper => _p.paper;
 Color get paperInk => _p.paperInk;
 Color get paperMuted => _p.paperMuted;
@@ -218,30 +230,122 @@ final temaGelapApp = buildTheme(dark: true);
 
 ThemeData buildTheme({required bool dark}) {
   final p = dark ? AppPalette.dark : AppPalette.light;
+  final s = dark ? AppPalette._skemaGelap : AppPalette._skemaTerang;
+  final bulat = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(Sudut.md),
+  );
   final base = ThemeData(
     useMaterial3: true,
-    brightness: p.brightness,
+    colorScheme: s,
     fontFamily: 'Archivo',
     scaffoldBackgroundColor: p.bg,
-    colorScheme: ColorScheme(
-      brightness: p.brightness,
-      primary: p.accent,
-      onPrimary: Colors.white,
-      secondary: p.neutral700,
-      onSecondary: p.bg,
-      error: p.accent700,
-      onError: Colors.white,
-      surface: p.bg,
-      onSurface: p.ink,
-    ),
     extensions: [p],
   );
   return base.copyWith(
     textTheme: base.textTheme.apply(bodyColor: p.ink, displayColor: p.ink),
-    splashFactory: NoSplash.splashFactory,
-    dividerColor: p.divider,
-    dialogTheme: DialogThemeData(
+    dividerColor: p.garis,
+    dividerTheme: DividerThemeData(color: p.garis, space: 1, thickness: 1),
+    appBarTheme: AppBarTheme(
       backgroundColor: p.bg,
+      foregroundColor: p.ink,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: p.accent,
+        foregroundColor: p.onAccent,
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        textStyle: const TextStyle(
+          fontFamily: 'Archivo',
+          fontWeight: FontWeight.w600,
+        ),
+        shape: bulat,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: p.ink,
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        side: BorderSide(color: p.garis),
+        textStyle: const TextStyle(
+          fontFamily: 'Archivo',
+          fontWeight: FontWeight.w600,
+        ),
+        shape: bulat,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: p.accent700,
+        minimumSize: const Size(48, 48),
+        textStyle: const TextStyle(
+          fontFamily: 'Archivo',
+          fontWeight: FontWeight.w600,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Sudut.sm),
+        ),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: p.accent200,
+        selectedForegroundColor: p.accent800,
+        foregroundColor: p.ink,
+        side: BorderSide(color: p.garis),
+        minimumSize: const Size(48, 48),
+        textStyle: const TextStyle(
+          fontFamily: 'Archivo',
+          fontWeight: FontWeight.w600,
+        ),
+        shape: bulat,
+      ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: p.accent200,
+      height: 68,
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (st) => TextStyle(
+          fontFamily: 'Archivo',
+          fontSize: 12,
+          fontWeight: st.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
+          color: st.contains(WidgetState.selected) ? p.accent800 : p.neutral600,
+        ),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (st) => IconThemeData(
+          color: st.contains(WidgetState.selected) ? p.accent800 : p.neutral600,
+        ),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      color: p.surface,
+      surfaceTintColor: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Sudut.lg),
+        side: BorderSide(color: p.garis),
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: dark ? const Color(0xFF17201C) : Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Sudut.xl),
+      ),
       titleTextStyle: TextStyle(
         color: p.ink,
         fontWeight: FontWeight.w700,
@@ -249,54 +353,53 @@ ThemeData buildTheme({required bool dark}) {
         fontFamily: 'Archivo',
       ),
       contentTextStyle: TextStyle(color: p.ink, fontFamily: 'Archivo'),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
     ),
     listTileTheme: ListTileThemeData(
       textColor: p.ink,
-      iconColor: p.ink,
+      iconColor: p.neutral600,
       subtitleTextStyle: TextStyle(color: p.neutral600, fontFamily: 'Archivo'),
-    ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: p.bg,
-      foregroundColor: p.ink,
-      elevation: 0,
-      systemOverlayStyle: dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      shape: bulat,
     ),
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       filled: true,
       fillColor: p.fieldFill,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(color: p.divider),
+        borderRadius: BorderRadius.circular(Sudut.md),
+        borderSide: BorderSide(color: p.garis),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(color: p.divider),
+        borderRadius: BorderRadius.circular(Sudut.md),
+        borderSide: BorderSide(color: p.garis),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(color: p.ink, width: 2),
+        borderRadius: BorderRadius.circular(Sudut.md),
+        borderSide: BorderSide(color: p.accent, width: 2),
       ),
       hintStyle: TextStyle(color: p.neutral500, fontWeight: FontWeight.w400),
     ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: p.accent,
+      selectionColor: p.accent.withValues(alpha: .3),
+      selectionHandleColor: p.accent,
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: p.accent),
   );
 }
 
-TextStyle micro(double fs, {Color? color, double ls = .08}) => TextStyle(
-  fontSize: fs * .68,
-  letterSpacing: fs * .68 * ls,
+/// Label kecil di atas sebuah isian.
+TextStyle micro(double fs, {Color? color, double ls = .02}) => TextStyle(
+  fontSize: fs * .74,
+  letterSpacing: fs * .74 * ls,
   color: color ?? neutral600,
-  fontWeight: FontWeight.w400,
+  fontWeight: FontWeight.w500,
 );
 
 TextStyle heading(double size, {Color? color, double height = 1.15}) =>
     TextStyle(
       fontSize: size,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w700,
       color: color ?? ink,
       height: height,
     );

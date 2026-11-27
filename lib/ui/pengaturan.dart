@@ -23,6 +23,9 @@ class TabPengaturan extends StatelessWidget {
   }
 }
 
+/// Urutan pilihan di segmen Tampilan.
+const _urutanTema = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
+
 class _Blok extends StatelessWidget {
   final List<Widget> children;
   const _Blok({required this.children});
@@ -30,11 +33,17 @@ class _Blok extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      border: Border(bottom: BorderSide(color: divider)),
+      color: surface,
+      borderRadius: BorderRadius.circular(Sudut.lg),
+      border: Border.all(color: divider),
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
   );
 }
 
@@ -74,11 +83,13 @@ class _UtamaState extends State<_Utama> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Kategori & merek SAK',
-                            style: TextStyle(
-                              fontSize: f * .9,
-                              fontWeight: FontWeight.w700,
-                            )),
+                        Text(
+                          'Kategori & merek SAK',
+                          style: TextStyle(
+                            fontSize: f * .9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         Text(
                           '${s.brands.length} merek · tambah, ubah, hapus',
                           style: TextStyle(
@@ -90,11 +101,7 @@ class _UtamaState extends State<_Utama> {
                       ],
                     ),
                   ),
-                  Text('›',
-                      style: TextStyle(
-                        fontSize: f * 1.1,
-                        fontWeight: FontWeight.w700,
-                      )),
+                  Icon(Icons.chevron_right, color: neutral600),
                 ],
               ),
             ],
@@ -102,21 +109,25 @@ class _UtamaState extends State<_Utama> {
         ),
         _Blok(
           children: [
-            const LabelMikro('Tampilan'),
+            const JudulBagian('Tampilan'),
             const SizedBox(height: 8),
             Segmen(
-              labels: const ['Terang', 'Gelap'],
-              terpilih: s.darkMode ? 1 : 0,
+              labels: const ['Sistem', 'Terang', 'Gelap'],
+              terpilih: _urutanTema.indexOf(s.temaMode.value),
               onPilih: (i) =>
-                  s.ubah(() => s.darkMode = i == 1, simpan: true),
+                  s.ubah(() => s.temaMode.value = _urutanTema[i], simpan: true),
               fontSize: f * .82,
-              align: TextAlign.left,
             ),
             const SizedBox(height: 8),
             Text(
-              s.darkMode
-                  ? 'Mode gelap — nyaman di gudang malam / layar redup.'
-                  : 'Mode terang — kontras tinggi di siang hari.',
+              switch (s.temaMode.value) {
+                ThemeMode.system =>
+                  'Ikut tema HP — berganti sendiri saat HP pindah terang/gelap.',
+                ThemeMode.light =>
+                  'Mode terang — kontras tinggi di siang hari.',
+                ThemeMode.dark =>
+                  'Mode gelap — nyaman di gudang malam / layar redup.',
+              },
               style: TextStyle(
                 fontSize: f * .72,
                 color: neutral600,
@@ -127,7 +138,7 @@ class _UtamaState extends State<_Utama> {
         ),
         _Blok(
           children: [
-            const LabelMikro('Ukuran huruf'),
+            const JudulBagian('Ukuran huruf'),
             const SizedBox(height: 8),
             Segmen(
               labels: const ['Kecil', 'Sedang', 'Besar', 'Jumbo'],
@@ -143,6 +154,7 @@ class _UtamaState extends State<_Utama> {
               decoration: BoxDecoration(
                 color: neutral100,
                 border: Border.all(color: divider),
+                borderRadius: BorderRadius.circular(Sudut.md),
               ),
               child: Text.rich(
                 TextSpan(
@@ -153,10 +165,7 @@ class _UtamaState extends State<_Utama> {
                     ),
                     TextSpan(
                       text: 'CAKRA KEMBAR — 12 sak',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: ink,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w700, color: ink),
                     ),
                   ],
                 ),
@@ -167,7 +176,7 @@ class _UtamaState extends State<_Utama> {
         ),
         _Blok(
           children: [
-            const LabelMikro('Lebar kertas'),
+            const JudulBagian('Lebar kertas'),
             const SizedBox(height: 8),
             Segmen(
               labels: const ['58 mm', '80 mm'],
@@ -181,7 +190,7 @@ class _UtamaState extends State<_Utama> {
         ),
         _Blok(
           children: [
-            const LabelMikro('Jumlah rangkap'),
+            const JudulBagian('Jumlah rangkap'),
             const SizedBox(height: 8),
             Segmen(
               labels: const ['1 rangkap', '2 rangkap'],
@@ -205,7 +214,7 @@ class _UtamaState extends State<_Utama> {
         ),
         _Blok(
           children: [
-            const LabelMikro('Sisa kertas bawah'),
+            const JudulBagian('Sisa kertas bawah'),
             const SizedBox(height: 8),
             Segmen(
               labels: const ['0', '1', '2', '3'],
@@ -230,12 +239,13 @@ class _UtamaState extends State<_Utama> {
         const _BlokPembaruan(),
         _Blok(
           children: [
-            const LabelMikro('Server & antrian'),
+            const JudulBagian('Server & antrian'),
             const SizedBox(height: 8),
             TextField(
               controller: _urlCtl,
               keyboardType: TextInputType.url,
-              onChanged: (v) => s.ubah(() => s.serverUrl = v.trim(), simpan: true),
+              onChanged: (v) =>
+                  s.ubah(() => s.serverUrl = v.trim(), simpan: true),
               style: TextStyle(fontFamily: mono, fontSize: f * .78, color: ink),
               decoration: InputDecoration(fillColor: neutral100),
             ),
@@ -244,11 +254,13 @@ class _UtamaState extends State<_Utama> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Antrian menunggu unggah',
-                      style: TextStyle(
-                        fontSize: f * .82,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Text(
+                    'Antrian menunggu unggah',
+                    style: TextStyle(
+                      fontSize: f * .82,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Text('${s.queue}', style: heading(f * 1.2)),
                 ],
               ),
@@ -260,11 +272,10 @@ class _UtamaState extends State<_Utama> {
               s.sedangSync
                   ? 'Menyinkronkan…'
                   : (s.queue > 0
-                      ? 'Sinkronkan sekarang (${s.queue} antre)'
-                      : 'Sinkronkan sekarang'),
+                        ? 'Sinkronkan sekarang (${s.queue} antre)'
+                        : 'Sinkronkan sekarang'),
               onTap: s.syncSekarang,
-              warna: s.queue > 0 ? accent : neutral200,
-              teks: s.queue > 0 ? Colors.white : ink,
+              sekunder: s.queue == 0,
             ),
             const SizedBox(height: 8),
             Text(
@@ -284,7 +295,7 @@ class _UtamaState extends State<_Utama> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const LabelMikro('Nama petugas sesi ini'),
+              const JudulBagian('Nama petugas sesi ini'),
               const SizedBox(height: 8),
               Isian(
                 controller: _petugasCtl!,
@@ -298,11 +309,10 @@ class _UtamaState extends State<_Utama> {
                   s.mulaiSesi(_petugasCtl!.text);
                   s.tampilToast('Petugas: ${s.petugas}');
                 },
-                warna: neutral200,
-                teks: ink,
+                sekunder: true,
               ),
               const SizedBox(height: 8),
-              TombolAksi('Akhiri sesi', onTap: s.akhiriSesi),
+              TombolAksi('Akhiri sesi', onTap: s.akhiriSesi, sekunder: true),
             ],
           ),
         ),
@@ -386,58 +396,52 @@ class _BlokPembaruanState extends State<_BlokPembaruan> {
     final f = fs(context);
     final sekarang = _versi;
     final r = _rilis;
-    final baru = sekarang != null && r != null && adaVersiBaru(sekarang, r.versi);
+    final baru =
+        sekarang != null && r != null && adaVersiBaru(sekarang, r.versi);
 
     return _Blok(
       children: [
-        const LabelMikro('Versi aplikasi'),
+        const JudulBagian('Versi aplikasi'),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: Text(
                 sekarang == null ? '…' : 'Terpasang: $sekarang',
-                style: TextStyle(fontSize: f * .88, fontWeight: FontWeight.w700),
-              ),
-            ),
-            if (r != null && !baru)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                color: badgeOkBg,
-                child: Text(
-                  'TERBARU',
-                  style: TextStyle(
-                    fontSize: f * .66,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: f * .66 * .06,
-                    color: badgeOkFg,
-                  ),
+                style: TextStyle(
+                  fontSize: f * .88,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
+            ),
+            if (r != null && !baru) ChipNada('Terbaru', warna: badgeOkFg),
           ],
         ),
         if (_galat != null) ...[
           const SizedBox(height: 8),
           Text(
             _galat!,
-            style: TextStyle(fontSize: f * .74, color: accent700, height: 1.4),
+            style: TextStyle(fontSize: f * .74, color: bahaya, height: 1.4),
           ),
         ],
         if (baru) ...[
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            color: badgeAntriBg,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: badgeAntriBg,
+              borderRadius: BorderRadius.circular(Sudut.md),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'VERSI ${r.versi} TERSEDIA',
+                  'Versi ${r.versi} tersedia',
                   style: TextStyle(
-                    fontSize: f * .68,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: f * .68 * .06,
+                    fontSize: f * .82,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0,
                     color: badgeAntriFg,
                   ),
                 ),
@@ -466,8 +470,7 @@ class _BlokPembaruanState extends State<_BlokPembaruan> {
               child: TombolAksi(
                 _sibuk ? 'Memeriksa…' : 'Cek pembaruan',
                 onTap: _cek,
-                warna: baru ? null : neutral200,
-                teks: baru ? Colors.white : ink,
+                sekunder: !baru,
               ),
             ),
             if (baru) ...[
@@ -480,8 +483,7 @@ class _BlokPembaruanState extends State<_BlokPembaruan> {
                         ? r.unduhanApk!
                         : kHalamanRilis,
                   ),
-                  warna: neutral200,
-                  teks: ink,
+                  sekunder: true,
                 ),
               ),
             ],
@@ -491,7 +493,7 @@ class _BlokPembaruanState extends State<_BlokPembaruan> {
         Text(
           Platform.isAndroid
               ? 'APK diunduh lewat browser, lalu ketuk berkasnya untuk memasang. '
-                  'Data tiket tidak terhapus saat memperbarui.'
+                    'Data tiket tidak terhapus saat memperbarui.'
               : 'Membuka halaman rilis di browser.',
           style: TextStyle(fontSize: f * .72, color: neutral600, height: 1.5),
         ),
@@ -519,17 +521,20 @@ class _TiketDitolak extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      color: badgeTolakBg,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: badgeTolakBg,
+        borderRadius: BorderRadius.circular(Sudut.md),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${ditolak.length} TIKET DITOLAK SERVER',
+            '${ditolak.length} tiket ditolak server',
             style: TextStyle(
-              fontSize: f * .68,
-              fontWeight: FontWeight.w800,
-              letterSpacing: f * .68 * .06,
+              fontSize: f * .82,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
               color: badgeTolakFg,
             ),
           ),
@@ -576,10 +581,7 @@ class _BlokPrinter extends StatefulWidget {
 class _BlokPrinterState extends State<_BlokPrinter> {
   bool _sibuk = false;
 
-  Future<void> _jalankan(
-    AppState s,
-    Future<void> Function() aksi,
-  ) async {
+  Future<void> _jalankan(AppState s, Future<void> Function() aksi) async {
     if (_sibuk) return;
     setState(() => _sibuk = true);
     try {
@@ -597,8 +599,6 @@ class _BlokPrinterState extends State<_BlokPrinter> {
     final pilih = await showDialog<Perangkat>(
       context: context,
       builder: (c) => SimpleDialog(
-        backgroundColor: bg,
-        shape: const RoundedRectangleBorder(),
         title: Text(
           'Pilih printer',
           style: TextStyle(
@@ -646,13 +646,14 @@ class _BlokPrinterState extends State<_BlokPrinter> {
     final adaPrinter = (s.printerMac ?? '').isNotEmpty;
     return _Blok(
       children: [
-        const LabelMikro('Printer'),
+        const JudulBagian('Printer'),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: neutral100,
             border: Border.all(color: divider),
+            borderRadius: BorderRadius.circular(Sudut.md),
           ),
           child: Row(
             children: [
@@ -670,8 +671,8 @@ class _BlokPrinterState extends State<_BlokPrinter> {
                     Text(
                       adaPrinter
                           ? (PrinterDesktop.didukung
-                              ? 'USB · antrean sistem'
-                              : 'Bluetooth · ${s.printerMac}')
+                                ? 'USB · antrean sistem'
+                                : 'Bluetooth · ${s.printerMac}')
                           : 'Ketuk ${PrinterDesktop.didukung ? "Cari printer" : "Pindai perangkat"}',
                       style: TextStyle(
                         fontSize: f * .7,
@@ -682,18 +683,9 @@ class _BlokPrinterState extends State<_BlokPrinter> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                color: adaPrinter ? accent : neutral200,
-                child: Text(
-                  adaPrinter ? 'TERSIMPAN' : 'KOSONG',
-                  style: TextStyle(
-                    fontSize: f * .66,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: f * .66 * .06,
-                    color: adaPrinter ? Colors.white : neutral700,
-                  ),
-                ),
+              ChipNada(
+                adaPrinter ? 'Tersimpan' : 'Kosong',
+                warna: adaPrinter ? badgeOkFg : neutral600,
               ),
             ],
           ),
@@ -702,10 +694,10 @@ class _BlokPrinterState extends State<_BlokPrinter> {
         Text(
           PrinterDesktop.didukung
               ? 'Printer USB dibaca dari antrean sistem '
-                  '(${Platform.isLinux ? "CUPS" : "Windows"}). Pasang printernya '
-                  'di setelan sistem dulu, lalu pilih di sini.'
+                    '(${Platform.isLinux ? "CUPS" : "Windows"}). Pasang printernya '
+                    'di setelan sistem dulu, lalu pilih di sini.'
               : 'Pasangkan printer lewat Setelan → Bluetooth, lalu pilih di sini. '
-                  'Koneksi dibuka otomatis saat mencetak.',
+                    'Koneksi dibuka otomatis saat mencetak.',
           style: TextStyle(fontSize: f * .74, color: neutral700, height: 1.5),
         ),
         const SizedBox(height: 10),
@@ -716,11 +708,10 @@ class _BlokPrinterState extends State<_BlokPrinter> {
                 _sibuk
                     ? 'Tunggu…'
                     : (PrinterDesktop.didukung
-                        ? 'Cari printer'
-                        : 'Pindai perangkat'),
+                          ? 'Cari printer'
+                          : 'Pindai perangkat'),
                 onTap: () => _pindai(s),
-                warna: neutral200,
-                teks: ink,
+                sekunder: true,
               ),
             ),
             const SizedBox(width: 8),
@@ -735,8 +726,7 @@ class _BlokPrinterState extends State<_BlokPrinter> {
                   );
                   s.tampilToast('Tes cetak terkirim');
                 }),
-                warna: bg,
-                teks: ink,
+                sekunder: true,
               ),
             ),
           ],
@@ -755,6 +745,7 @@ class _Merek extends StatefulWidget {
 
 class _MerekState extends State<_Merek> {
   final ctl = TextEditingController();
+
   /// Nama merek yang sedang diubah; null berarti sedang menambah baru.
   String? namaEdit;
   String kategori = 'Terigu';
@@ -777,37 +768,40 @@ class _MerekState extends State<_Merek> {
     final f = fs(context);
     return ListView(
       children: [
-        Tap(
-          onTap: () {
-            _reset();
-            s.ubah(() => s.aturView = 'utama');
-          },
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: ink, width: 2)),
-            ),
-            child: Text(
-              '‹ PENGATURAN',
-              style: TextStyle(
-                fontSize: f * .76,
-                fontWeight: FontWeight.w700,
-                letterSpacing: f * .76 * .06,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+            child: TextButton.icon(
+              onPressed: () {
+                _reset();
+                s.ubah(() => s.aturView = 'utama');
+              },
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Pengaturan'),
+              style: TextButton.styleFrom(
+                foregroundColor: ink,
+                textStyle: TextStyle(
+                  fontFamily: 'Archivo',
+                  fontSize: f * .9,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: neutral100,
-            border: Border(bottom: BorderSide(color: ink, width: 2)),
+            color: surface,
+            borderRadius: BorderRadius.circular(Sudut.lg),
+            border: Border.all(color: divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LabelMikro(namaEdit == null ? 'Tambah merek' : 'Ubah merek'),
+              JudulBagian(namaEdit == null ? 'Tambah merek' : 'Ubah merek'),
               const SizedBox(height: 10),
               Isian(controller: ctl, hint: 'Nama merek', fontSize: f * .9),
               const SizedBox(height: 10),
@@ -829,8 +823,7 @@ class _MerekState extends State<_Merek> {
                         final sebelum = s.brands.length;
                         s.simpanMerek(namaEdit, ctl.text, kategori);
                         // Reset form hanya bila simpan benar-benar terjadi.
-                        if (namaEdit != null ||
-                            s.brands.length != sebelum) {
+                        if (namaEdit != null || s.brands.length != sebelum) {
                           _reset();
                         }
                       },
@@ -839,12 +832,7 @@ class _MerekState extends State<_Merek> {
                   if (namaEdit != null) ...[
                     const SizedBox(width: 8),
                     Expanded(
-                      child: TombolAksi(
-                        'Batal',
-                        onTap: _reset,
-                        warna: bg,
-                        teks: ink,
-                      ),
+                      child: TombolAksi('Batal', onTap: _reset, sekunder: true),
                     ),
                   ],
                 ],
@@ -854,7 +842,7 @@ class _MerekState extends State<_Merek> {
         ),
         for (final m in s.brands)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: divider)),
             ),
@@ -864,30 +852,33 @@ class _MerekState extends State<_Merek> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(m.nama,
-                          style: TextStyle(
-                            fontSize: f * .86,
-                            fontWeight: FontWeight.w700,
-                          )),
-                      Text(m.kategori.toUpperCase(), style: micro(f * .97)),
+                      Text(
+                        m.nama,
+                        style: TextStyle(
+                          fontSize: f * .86,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(m.kategori, style: micro(f)),
                     ],
                   ),
                 ),
-                Tap(
-                  onTap: () => setState(() {
+                TextButton(
+                  onPressed: () => setState(() {
                     namaEdit = m.nama;
                     ctl.text = m.nama;
                     kategori = m.kategori;
                   }),
-                  child: Text('UBAH', style: _aksi(f, ink)),
+                  style: _aksi(f, ink),
+                  child: const Text('Ubah'),
                 ),
-                const SizedBox(width: 12),
-                Tap(
-                  onTap: () {
+                TextButton(
+                  onPressed: () {
                     s.hapusMerek(m.nama);
                     _reset();
                   },
-                  child: Text('HAPUS', style: _aksi(f, accent700)),
+                  style: _aksi(f, bahaya),
+                  child: const Text('Hapus'),
                 ),
               ],
             ),
@@ -896,10 +887,13 @@ class _MerekState extends State<_Merek> {
     );
   }
 
-  TextStyle _aksi(double f, Color c) => TextStyle(
-    fontSize: f * .72,
-    fontWeight: FontWeight.w700,
-    letterSpacing: f * .72 * .06,
-    color: c,
+  ButtonStyle _aksi(double f, Color c) => TextButton.styleFrom(
+    foregroundColor: c,
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    textStyle: TextStyle(
+      fontFamily: 'Archivo',
+      fontSize: f * .82,
+      fontWeight: FontWeight.w600,
+    ),
   );
 }

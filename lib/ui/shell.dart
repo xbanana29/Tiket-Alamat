@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 import '../brand.dart';
 import '../theme.dart';
 import 'daftar.dart';
@@ -8,6 +7,8 @@ import 'pengaturan.dart';
 import 'pesanan.dart';
 import 'setup.dart';
 import 'widgets.dart';
+
+const _tabs = ['pesanan', 'daftar', 'atur'];
 
 class Shell extends StatelessWidget {
   const Shell({super.key});
@@ -28,6 +29,9 @@ class Shell extends StatelessWidget {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        // NavigationBar mengurus inset bawahnya sendiri, supaya latarnya
+        // menerus sampai ke bilah navigasi Android.
+        bottom: kb,
         child: Stack(
           children: [
             Column(
@@ -41,21 +45,30 @@ class Shell extends StatelessWidget {
                   },
                 ),
                 if (!kb)
-                  Container(
+                  DecoratedBox(
                     decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: ink, width: 2)),
+                      border: Border(top: BorderSide(color: divider)),
                     ),
-                    child: Segmen(
-                      labels: const ['Pesanan', 'Daftar', 'Pengaturan'],
-                      terpilih: ['pesanan', 'daftar', 'atur'].indexOf(s.tab),
-                      onPilih: (i) =>
-                          s.bukaTab(['pesanan', 'daftar', 'atur'][i]),
-                      fontSize: f * .74,
-                      berbingkai: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
+                    child: NavigationBar(
+                      selectedIndex: _tabs.indexOf(s.tab).clamp(0, 2),
+                      onDestinationSelected: (i) => s.bukaTab(_tabs[i]),
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.receipt_long_outlined),
+                          selectedIcon: Icon(Icons.receipt_long),
+                          label: 'Pesanan',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.view_list_outlined),
+                          selectedIcon: Icon(Icons.view_list),
+                          label: 'Daftar',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.settings_outlined),
+                          selectedIcon: Icon(Icons.settings),
+                          label: 'Pengaturan',
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -68,25 +81,30 @@ class Shell extends StatelessWidget {
             // Didengarkan sendiri: muncul/hilangnya toast hanya membangun
             // ulang kotak ini.
             Positioned(
-              left: 8,
-              right: 8,
+              left: 12,
+              right: 12,
               top: 8,
               child: ValueListenableBuilder(
                 valueListenable: s.toastNotifier,
                 builder: (_, toast, _) => toast.isEmpty
                     ? const SizedBox.shrink()
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        color: ink,
-                        child: Text(
-                          toast,
-                          style: TextStyle(
-                            color: toastFg,
-                            fontSize: f * .8,
-                            fontWeight: FontWeight.w600,
+                    : Material(
+                        color: toastBg,
+                        elevation: 6,
+                        shadowColor: Colors.black.withValues(alpha: .3),
+                        borderRadius: BorderRadius.circular(Sudut.md),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            toast,
+                            style: TextStyle(
+                              color: toastFg,
+                              fontSize: f * .82,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
@@ -106,120 +124,89 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
+    final label = s.sedangSync ? 'Sync…' : (s.online ? 'Sync' : 'Luring');
+    final nada = s.online || s.sedangSync ? accent700 : waspada;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
       decoration: BoxDecoration(
         color: bg,
-        border: Border(bottom: BorderSide(color: ink, width: 2)),
+        border: Border(bottom: BorderSide(color: divider)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  kAppNameUpper,
-                  style: heading(f * 1.15).copyWith(letterSpacing: -f * .01),
-                ),
-              ),
-              // Pil status sekaligus tombol sync — bisa dijangkau dari tab mana
-              // pun tanpa menambah elemen baru di header yang sudah padat.
-              Tap(
-                onTap: s.syncSekarang,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: neutral100,
-                    border: Border.all(color: divider),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (s.sedangSync)
-                        SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kAppName, style: heading(f * 1.2)),
+                const SizedBox(height: 2),
+                // Ketuk nama petugas untuk menggantinya di Pengaturan.
+                Tap(
+                  onTap: () => s.ubah(() => s.tab = 'atur'),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Petugas · ',
+                          style: TextStyle(color: neutral600),
+                        ),
+                        TextSpan(
+                          text: s.petugas.toUpperCase(),
+                          style: TextStyle(
                             color: ink,
-                          ),
-                        )
-                      else
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: s.online ? hijau : accent,
-                            shape: BoxShape.rectangle,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      const SizedBox(width: 6),
-                      Text(
-                        s.sedangSync
-                            ? 'SYNC…'
-                            : (s.online ? 'SYNC' : 'LURING'),
-                        style: TextStyle(
-                          fontSize: f * .68,
-                          letterSpacing: f * .68 * .06,
-                          fontWeight: FontWeight.w700,
-                          color: ink,
+                        TextSpan(
+                          text: ' · Ubah',
+                          style: TextStyle(color: accent700),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (s.queue > 0) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
-                  ),
-                  color: accent,
-                  child: Text(
-                    '${s.queue} ANTRI',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: f * .68,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: f * .68 * .04,
+                      ],
                     ),
+                    style: TextStyle(fontSize: f * .76),
                   ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          Tap(
-            onTap: () => s.ubah(() => s.tab = 'atur'),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'PETUGAS · ',
-                    style: TextStyle(color: neutral600),
-                  ),
-                  TextSpan(
-                    text: s.petugas.toUpperCase(),
-                    style: TextStyle(
-                      color: ink,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' · UBAH',
-                    style: TextStyle(color: neutral600),
-                  ),
-                ],
-              ),
-              style: micro(f, ls: .06),
             ),
           ),
+          // Chip status sekaligus tombol sync — bisa dijangkau dari tab mana
+          // pun tanpa menambah elemen baru di header.
+          Semantics(
+            button: true,
+            label: 'Sinkronkan sekarang',
+            child: Tap(
+              onTap: s.syncSekarang,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Center(
+                  child: ChipNada(
+                    label,
+                    warna: nada,
+                    depan: s.sedangSync
+                        ? SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: nada,
+                            ),
+                          )
+                        : Icon(
+                            s.online
+                                ? Icons.cloud_done_outlined
+                                : Icons.cloud_off,
+                            size: f * .9,
+                            color: nada,
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (s.queue > 0) ...[
+            const SizedBox(width: 6),
+            ChipNada('${s.queue} antre', warna: badgeAntriFg),
+          ],
         ],
       ),
     );

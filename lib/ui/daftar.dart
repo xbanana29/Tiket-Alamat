@@ -16,14 +16,15 @@ class TabDaftar extends StatelessWidget {
     return Column(
       children: [
         // Navigasi tanggal: ‹ / label (ketuk = hari ini) / ›
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: divider)),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Row(
             children: [
-              _Panah('‹', () => s.pilihTanggal(hari: -1)),
+              _Panah(
+                Icons.chevron_left,
+                'Hari sebelumnya',
+                () => s.pilihTanggal(hari: -1),
+              ),
               Expanded(
                 child: Tap(
                   onTap: () => s.pilihTanggal(),
@@ -32,54 +33,49 @@ class TabDaftar extends StatelessWidget {
                       Text(
                         fmtTanggal(s.tanggal),
                         style: TextStyle(
-                          fontSize: f * .82,
+                          fontSize: f * .9,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         s.sedangTarik
-                            ? 'MENGAMBIL DARI SERVER…'
-                            : '${terpilih.length} TIKET · KETUK UNTUK HARI INI',
-                        style: micro(f * .94),
+                            ? 'Mengambil dari server…'
+                            : '${terpilih.length} tiket · ketuk untuk hari ini',
+                        style: micro(f),
                       ),
                     ],
                   ),
                 ),
               ),
-              _Panah('›', () => s.pilihTanggal(hari: 1)),
+              _Panah(
+                Icons.chevron_right,
+                'Hari berikutnya',
+                () => s.pilihTanggal(hari: 1),
+              ),
             ],
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: divider)),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Segmen(
             labels: const ['Tiket', 'Laporan'],
             terpilih: s.daftarView == 'tiket' ? 0 : 1,
             onPilih: (i) =>
                 s.ubah(() => s.daftarView = i == 0 ? 'tiket' : 'laporan'),
-            fontSize: f * .74,
-            berbingkai: false,
-            align: TextAlign.left,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            fontSize: f * .8,
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: ink, width: 2)),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Segmen(
             labels: const ['Semua', 'Terigu / Gula', 'Minyak'],
             terpilih: ['semua', 'sak', 'minyak'].indexOf(s.histFilter),
             onPilih: (i) =>
                 s.ubah(() => s.histFilter = ['semua', 'sak', 'minyak'][i]),
-            fontSize: f * .74,
-            berbingkai: false,
-            align: TextAlign.left,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            fontSize: f * .8,
           ),
         ),
+        Divider(color: divider),
         Expanded(
           child: s.daftarView == 'tiket'
               ? _ListTiket(tiket: terpilih)
@@ -91,25 +87,25 @@ class TabDaftar extends StatelessWidget {
 }
 
 class _Panah extends StatelessWidget {
-  final String label;
+  final IconData ikon;
+  final String keterangan;
   final VoidCallback onTap;
-  const _Panah(this.label, this.onTap);
+  const _Panah(this.ikon, this.keterangan, this.onTap);
 
   @override
-  Widget build(BuildContext context) {
-    final f = fs(context);
-    return Tap(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(border: Border.all(color: divider)),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: f * .85, fontWeight: FontWeight.w700),
-        ),
+  Widget build(BuildContext context) => IconButton.outlined(
+    onPressed: onTap,
+    tooltip: keterangan,
+    icon: Icon(ikon),
+    style: IconButton.styleFrom(
+      side: BorderSide(color: divider),
+      foregroundColor: ink,
+      minimumSize: const Size(48, 48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Sudut.md),
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// Chip status tiket: abu-abu terkirim, kuning antri, merah ditolak server.
@@ -120,24 +116,15 @@ class _ChipStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bgWarna, fgWarna) = switch (status) {
-      statusTerkirim => (badgeOkBg, badgeOkFg),
-      statusDitolak => (badgeTolakBg, badgeTolakFg),
-      _ => (badgeAntriBg, badgeAntriFg),
+    final warna = switch (status) {
+      statusTerkirim => badgeOkFg,
+      statusDitolak => badgeTolakFg,
+      _ => badgeAntriFg,
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      color: bgWarna,
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(
-          fontSize: f * .66,
-          fontWeight: FontWeight.w700,
-          letterSpacing: f * .66 * .06,
-          color: fgWarna,
-        ),
-      ),
-    );
+    final label = status.isEmpty
+        ? status
+        : status[0].toUpperCase() + status.substring(1);
+    return ChipNada(label, warna: warna);
   }
 }
 
@@ -172,13 +159,18 @@ class _ListTiket extends StatelessWidget {
             for (final t in rev.baris) (t, true),
           for (final t in r.barisTeks) (t, false),
         ];
-        final namaLama = r.revisi.isNotEmpty && r.revisi.last.pelanggan != r.pelanggan
+        final namaLama =
+            r.revisi.isNotEmpty && r.revisi.last.pelanggan != r.pelanggan
             ? r.revisi.last.pelanggan
             : null;
+        // Satu tiket satu kartu, seperti daftar dokumen AmePOS.
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          margin: EdgeInsets.fromLTRB(12, i == 0 ? 10 : 4, 12, 4),
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: divider)),
+            color: surface,
+            borderRadius: BorderRadius.circular(Sudut.lg),
+            border: Border.all(color: divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,8 +188,10 @@ class _ListTiket extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(r.jam,
-                      style: TextStyle(fontSize: f * .7, color: neutral600)),
+                  Text(
+                    r.jam,
+                    style: TextStyle(fontSize: f * .7, color: neutral600),
+                  ),
                 ],
               ),
               if (namaLama != null)
@@ -220,30 +214,34 @@ class _ListTiket extends StatelessWidget {
                     decoration: coret ? TextDecoration.lineThrough : null,
                   ),
                 ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   _ChipStatus(status: r.status, f: f),
                   const SizedBox(width: 8),
-                  Text(r.petugas,
-                      style: TextStyle(fontSize: f * .68, color: neutral600)),
-                  const Spacer(),
-                  Tap(
-                    onTap: () => _bukaEdit(context, r),
-                    child: Text('UBAH',
-                        style: _aksi(f, ink)),
-                  ),
-                  const SizedBox(width: 12),
-                  if (s.bolehHapusTiket) ...[
-                    Tap(
-                      onTap: () => _konfirmasiHapus(context, r),
-                      child: Text('HAPUS', style: _aksi(f, accent700)),
+                  Expanded(
+                    child: Text(
+                      r.petugas,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: f * .72, color: neutral600),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                  Tap(
-                    onTap: () => s.cetakUlang(r),
-                    child: Text('CETAK ULANG', style: _aksi(f, accent700)),
+                  ),
+                  TextButton(
+                    onPressed: () => _bukaEdit(context, r),
+                    style: _aksi(f, ink),
+                    child: const Text('Ubah'),
+                  ),
+                  if (s.bolehHapusTiket)
+                    TextButton(
+                      onPressed: () => _konfirmasiHapus(context, r),
+                      style: _aksi(f, bahaya),
+                      child: const Text('Hapus'),
+                    ),
+                  TextButton(
+                    onPressed: () => s.cetakUlang(r),
+                    style: _aksi(f, accent700),
+                    child: const Text('Cetak ulang'),
                   ),
                 ],
               ),
@@ -254,11 +252,14 @@ class _ListTiket extends StatelessWidget {
     );
   }
 
-  TextStyle _aksi(double f, Color c) => TextStyle(
-    fontSize: f * .7,
-    fontWeight: FontWeight.w700,
-    letterSpacing: f * .7 * .06,
-    color: c,
+  ButtonStyle _aksi(double f, Color c) => TextButton.styleFrom(
+    foregroundColor: c,
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    textStyle: TextStyle(
+      fontFamily: 'Archivo',
+      fontSize: f * .8,
+      fontWeight: FontWeight.w600,
+    ),
   );
 
   /// Menghapus tiket tidak bisa dibatalkan dan ikut menghapusnya di HP lain,
@@ -269,28 +270,24 @@ class _ListTiket extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (d) => Dialog(
-        backgroundColor: bg,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: ink, width: 2),
-          borderRadius: BorderRadius.zero,
-        ),
         insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const LabelMikro('Hapus tiket'),
-                  const SizedBox(height: 8),
+                  Text('Hapus tiket?', style: heading(f * 1.1)),
+                  const SizedBox(height: 10),
                   Text(
                     r.pelanggan,
                     style: TextStyle(
                       fontSize: f * 1.05,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
@@ -313,6 +310,7 @@ class _ListTiket extends StatelessWidget {
             FooterDua(
               kiri: 'Batal',
               kanan: 'Hapus',
+              bahaya: true,
               onKiri: () => Navigator.pop(d),
               onKanan: () {
                 Navigator.pop(d);
@@ -407,17 +405,27 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  _Kotak('–', 48, () => setState(() {
-                        jerigen = (jerigen - 1).clamp(0, 99);
-                      })),
+                  _Kotak(
+                    Icons.remove,
+                    'Kurangi',
+                    52,
+                    () => setState(() {
+                      jerigen = (jerigen - 1).clamp(0, 99);
+                    }),
+                  ),
                   const SizedBox(width: 14),
                   Text('$jerigen', style: heading(f * 2.6, height: 1)),
                   const SizedBox(width: 8),
-                  Text('JERIGEN', style: micro(f * 1.09)),
+                  Text('jerigen', style: micro(f * 1.09)),
                   const SizedBox(width: 14),
-                  _Kotak('+', 48, () => setState(() {
-                        jerigen = (jerigen + 1).clamp(0, 99);
-                      })),
+                  _Kotak(
+                    Icons.add,
+                    'Tambah',
+                    52,
+                    () => setState(() {
+                      jerigen = (jerigen + 1).clamp(0, 99);
+                    }),
+                  ),
                 ],
               ),
             )
@@ -442,7 +450,7 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
                         ),
                       ),
                     ),
-                    _Kotak('–', 34, () => _ubahQty(i, -1)),
+                    _Kotak(Icons.remove, 'Kurangi', 40, () => _ubahQty(i, -1)),
                     SizedBox(
                       width: 62,
                       child: Text(
@@ -451,18 +459,11 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
                         style: heading(f * .95),
                       ),
                     ),
-                    _Kotak('+', 34, () => _ubahQty(i, 1)),
-                    Tap(
-                      onTap: () => setState(() => items.removeAt(i)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('✕',
-                            style: TextStyle(
-                              color: accent700,
-                              fontWeight: FontWeight.w700,
-                              fontSize: f * .8,
-                            )),
-                      ),
+                    _Kotak(Icons.add, 'Tambah', 40, () => _ubahQty(i, 1)),
+                    IconButton(
+                      onPressed: () => setState(() => items.removeAt(i)),
+                      tooltip: 'Buang merek',
+                      icon: Icon(Icons.close, color: bahaya),
                     ),
                   ],
                 ),
@@ -478,22 +479,19 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
                 runSpacing: 6,
                 children: [
                   for (final b in s.brands)
-                    Tap(
-                      onTap: () => _tambah(b.nama),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(border: Border.all(color: ink)),
-                        child: Text(
-                          b.nama,
-                          style: TextStyle(
-                            fontSize: f * .72,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: f * .72 * .03,
-                          ),
-                        ),
+                    ActionChip(
+                      onPressed: () => _tambah(b.nama),
+                      avatar: Icon(Icons.add, size: f, color: accent700),
+                      label: Text(b.nama),
+                      labelStyle: TextStyle(
+                        fontSize: f * .8,
+                        fontWeight: FontWeight.w600,
+                        color: ink,
+                      ),
+                      backgroundColor: surface,
+                      side: BorderSide(color: divider),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Sudut.sm),
                       ),
                     ),
                 ],
@@ -536,28 +534,26 @@ class _SheetUbahTiketState extends State<SheetUbahTiket> {
   }
 }
 
+/// Tombol tambah/kurang jumlah: kotak tombol numpad, bersudut 8.
 class _Kotak extends StatelessWidget {
-  final String label;
+  final IconData ikon;
+  final String keterangan;
   final double ukuran;
   final VoidCallback onTap;
-  const _Kotak(this.label, this.ukuran, this.onTap);
+  const _Kotak(this.ikon, this.keterangan, this.ukuran, this.onTap);
 
   @override
-  Widget build(BuildContext context) => Tap(
-    onTap: onTap,
-    child: Container(
-      width: ukuran,
-      height: ukuran,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border.all(color: ink, width: ukuran > 40 ? 2 : 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: fs(context) * (ukuran > 40 ? 1.4 : 1),
-          fontWeight: FontWeight.w700,
-        ),
+  Widget build(BuildContext context) => IconButton.filledTonal(
+    onPressed: onTap,
+    tooltip: keterangan,
+    icon: Icon(ikon, size: ukuran * .5),
+    style: IconButton.styleFrom(
+      backgroundColor: tombolBg,
+      foregroundColor: tombolFg,
+      fixedSize: Size.square(ukuran),
+      minimumSize: Size.square(ukuran),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Sudut.sm),
       ),
     ),
   );
@@ -585,9 +581,11 @@ class _Laporan extends StatelessWidget {
     return ListView(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: ink, width: 2)),
+            color: accent200,
+            borderRadius: BorderRadius.circular(Sudut.lg),
           ),
           child: Row(
             children: [
@@ -600,34 +598,33 @@ class _Laporan extends StatelessWidget {
         ),
         if (rekap.isNotEmpty) ...[
           const Padding(
-            padding: EdgeInsets.fromLTRB(14, 12, 14, 4),
-            child: LabelMikro('Rekap per merek'),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+            child: JudulBagian('Rekap per merek'),
           ),
           for (final e in rekap)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: divider)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(e.key,
-                      style: TextStyle(
-                        fontSize: f * .84,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Text(
+                    e.key,
+                    style: TextStyle(
+                      fontSize: f * .84,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Text('${e.value} sak', style: heading(f * .95)),
                 ],
               ),
             ),
         ],
         const Padding(
-          padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
-          child: LabelMikro('Rincian cetak'),
+          padding: EdgeInsets.fromLTRB(16, 18, 16, 6),
+          child: JudulBagian('Rincian cetak'),
         ),
         if (tiket.isEmpty) const _Kosong(),
         for (final t in tiket)
@@ -654,18 +651,19 @@ class _Laporan extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.pelanggan,
-                          style: TextStyle(
-                            fontSize: f * .86,
-                            fontWeight: FontWeight.w700,
-                          )),
+                      Text(
+                        t.pelanggan,
+                        style: TextStyle(
+                          fontSize: f * .86,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       for (final b in t.barisTeks)
-                        Text(b,
-                            style: TextStyle(
-                              fontSize: f * .8,
-                              color: neutral800,
-                            )),
-                      Text(t.petugas.toUpperCase(), style: micro(f * .97)),
+                        Text(
+                          b,
+                          style: TextStyle(fontSize: f * .8, color: neutral800),
+                        ),
+                      Text(t.petugas, style: micro(f)),
                     ],
                   ),
                 ),
@@ -687,8 +685,15 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label.toUpperCase(), style: micro(f * .97)),
-      Text(nilai, style: heading(f * 1.7, height: 1.2)),
+      Text(label, style: micro(f, color: accent800)),
+      Text(
+        nilai,
+        style: heading(
+          f * 1.7,
+          height: 1.2,
+          color: accent800,
+        ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      ),
     ],
   );
 }

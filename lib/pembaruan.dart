@@ -9,11 +9,7 @@ class Rilis {
   final String versi; // tanpa awalan "v"
   final String catatan;
   final String? unduhanApk;
-  const Rilis({
-    required this.versi,
-    required this.catatan,
-    this.unduhanApk,
-  });
+  const Rilis({required this.versi, required this.catatan, this.unduhanApk});
 }
 
 /// Bandingkan dua versi semver sederhana ("1.2.10" > "1.2.9").
@@ -56,8 +52,9 @@ Future<Rilis> cekRilisTerbaru() async {
     if (res.statusCode != 200) {
       throw PembaruanGagal('GitHub menjawab ${res.statusCode}.');
     }
-    final j = jsonDecode(await res.transform(utf8.decoder).join())
-        as Map<String, dynamic>;
+    final j =
+        jsonDecode(await res.transform(utf8.decoder).join())
+            as Map<String, dynamic>;
     final tag = (j['tag_name'] as String? ?? '').replaceFirst('v', '');
     if (tag.isEmpty) throw const PembaruanGagal('Rilis tanpa nomor versi.');
 

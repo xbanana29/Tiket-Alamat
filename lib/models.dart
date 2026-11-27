@@ -33,8 +33,18 @@ String kunciTanggal(DateTime d) =>
 
 /// Nama bulan singkat — dipakai di layar dan di struk.
 const namaBulanPendek = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
 ];
 
 const statusTerkirim = 'Terkirim';
@@ -86,8 +96,9 @@ class Tiket {
       ? ['$jerigen JERIGEN MINYAK']
       : items.map((i) => '${i.qty} SAK ${i.nama}').toList();
 
-  String get totalLabel =>
-      isMinyak ? '$jerigen jerigen' : '${items.fold(0, (a, b) => a + b.qty)} sak';
+  String get totalLabel => isMinyak
+      ? '$jerigen jerigen'
+      : '${items.fold(0, (a, b) => a + b.qty)} sak';
 
   Tiket copyWith({
     String? pelanggan,
@@ -156,12 +167,8 @@ class Merek {
   /// sebelumnya memakai hapus lunak.
   final bool terkirim;
 
-  Merek(
-    this.nama,
-    this.kategori, {
-    DateTime? diubah,
-    this.terkirim = false,
-  }) : diubah = diubah ?? DateTime.fromMillisecondsSinceEpoch(0);
+  Merek(this.nama, this.kategori, {DateTime? diubah, this.terkirim = false})
+    : diubah = diubah ?? DateTime.fromMillisecondsSinceEpoch(0);
 
   Merek copyWith({String? kategori, DateTime? diubah, bool? terkirim}) => Merek(
     nama,

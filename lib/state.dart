@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart' show TextEditingController;
 
 import 'brand.dart';
@@ -10,7 +11,7 @@ import 'models.dart';
 import 'printer.dart';
 import 'store.dart';
 import 'sync.dart';
-import 'theme.dart' show AppPalette, applyPalette, kFontScales;
+import 'theme.dart' show kFontScales;
 
 /// Naikkan angka pada string buffer numpad: maksimal 2 digit, buang nol depan,
 /// clamp ke 99. Sama persis dengan `press()` di rancangan.
@@ -214,8 +215,7 @@ List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
       hasil[s.nama] = ada.copyWith(terkirim: true);
     }
   }
-  final urut = hasil.values.toList()
-    ..sort((a, b) => a.nama.compareTo(b.nama));
+  final urut = hasil.values.toList()..sort((a, b) => a.nama.compareTo(b.nama));
   return urut;
 }
 
@@ -223,8 +223,7 @@ List<Merek> gabungMerek(List<Merek> lokal, List<Merek> server) {
 ///
 /// Seed dibuat tanpa `diubah`, jadi stempelnya tetap di titik nol. Begitu
 /// ditambah/diubah/dihapus lewat UI, stempelnya terisi waktu nyata.
-bool merekBawaan(Merek m) =>
-    m.diubah.millisecondsSinceEpoch == 0;
+bool merekBawaan(Merek m) => m.diubah.millisecondsSinceEpoch == 0;
 
 /// Hasil penyelarasan: daftar yang dipakai perangkat, dan baris yang perlu
 /// dikirim ke server.
@@ -242,9 +241,8 @@ typedef HasilSelaras = ({List<Merek> daftar, List<Merek> kirim});
 ///    mencampurkan contoh pabrik ke dalamnya.
 HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
   if (server.isNotEmpty && lokal.every(merekBawaan)) {
-    final daftar = [
-      for (final m in server) m.copyWith(terkirim: true),
-    ]..sort((a, b) => a.nama.compareTo(b.nama));
+    final daftar = [for (final m in server) m.copyWith(terkirim: true)]
+      ..sort((a, b) => a.nama.compareTo(b.nama));
     return (daftar: daftar, kirim: const []);
   }
 
@@ -262,6 +260,22 @@ HasilSelaras selaraskanMerek(List<Merek> lokal, List<Merek> server) {
     return s == null || m.diubah.isAfter(s.diubah);
   }).toList();
   return (daftar: daftar, kirim: kirim);
+}
+
+/// Mode tema dari data tersimpan.
+///
+/// Versi lama menyimpan `darkMode: bool`, dan selalu menulis `false` walau
+/// petugas tidak pernah menyentuhnya. Karena itu `false` dibaca sebagai
+/// "ikut sistem", bukan "terang" — hanya pilihan gelap yang pasti disengaja.
+ThemeMode bacaTemaMode(Map<String, dynamic> j) {
+  final nama = j['temaMode'] as String?;
+  if (nama != null) {
+    return ThemeMode.values.firstWhere(
+      (m) => m.name == nama,
+      orElse: () => ThemeMode.system,
+    );
+  }
+  return j['darkMode'] == true ? ThemeMode.dark : ThemeMode.system;
 }
 
 /// Buang merek yang pernah terkirim tapi sudah tidak ada lagi di server.
@@ -306,21 +320,15 @@ class AppState extends ChangeNotifier {
   List<Tiket> riwayat = [];
   int fontStep = 1;
 
+  /// Sistem (ikut tema HP), terang, atau gelap — sama dengan AmePOS.
+  ///
   /// Didengarkan MaterialApp sendiri: hanya perubahan tema yang membangun
   /// ulang MaterialApp, bukan setiap `notifyListeners`.
-  final temaGelap = ValueNotifier(false);
-  bool get darkMode => temaGelap.value;
-
-  /// Palet global diganti di sini, sebelum siapa pun dibangun ulang. Dulu
-  /// palet diambil dari `Theme.of` di MaterialApp.builder — tema yang sedang
-  /// dianimasikan, sehingga di frame pertama masih palet lama.
-  set darkMode(bool v) {
-    applyPalette(v ? AppPalette.dark : AppPalette.light);
-    temaGelap.value = v;
-  }
+  final temaMode = ValueNotifier(ThemeMode.system);
 
   int printerWidth = 58;
   int copies = 1;
+
   /// Baris kosong sebelum potong kertas (0–3). Printer thermal sering
   /// mendorong kertas ekstra; turunkan bila sisa blank terlalu panjang.
   int paperFeed = 0;
@@ -439,7 +447,7 @@ class AppState extends ChangeNotifier {
     if (j.isNotEmpty) {
       petugas = j['petugas'] as String? ?? '';
       fontStep = (j['fontStep'] as num?)?.toInt() ?? 1;
-      darkMode = j['darkMode'] as bool? ?? false;
+      temaMode.value = bacaTemaMode(j);
       printerWidth = (j['printerWidth'] as num?)?.toInt() ?? 58;
       copies = (j['copies'] as num?)?.toInt() ?? 1;
       paperFeed = ((j['paperFeed'] as num?)?.toInt() ?? 0).clamp(0, 3);
@@ -448,7 +456,9 @@ class AppState extends ChangeNotifier {
       printerNama = j['printerNama'] as String? ?? '';
       final b = j['brands'] as List?;
       if (b != null) {
-        brands = b.map((e) => Merek.fromJson(e as Map<String, dynamic>)).toList();
+        brands = b
+            .map((e) => Merek.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
       riwayat = pangkasRiwayat(
         ((j['riwayat'] ?? []) as List)
@@ -473,7 +483,10 @@ class AppState extends ChangeNotifier {
       // Berurutan: kirim dulu, baru tarik tiket perangkat lain untuk hari
       // ini. Dijalankan bersamaan, unggah memicu tarikan kedua.
       unawaited(
-        unggahAntrian(diam: true, tarikSesudah: false).then((_) => tarikTiket()),
+        unggahAntrian(
+          diam: true,
+          tarikSesudah: false,
+        ).then((_) => tarikTiket()),
       );
       unawaited(selarasMerek()); // daftar merek bersama
     }
@@ -486,7 +499,7 @@ class AppState extends ChangeNotifier {
     _store.save({
       'petugas': petugas,
       'fontStep': fontStep,
-      'darkMode': darkMode,
+      'temaMode': temaMode.value.name,
       'printerWidth': printerWidth,
       'copies': copies,
       'paperFeed': paperFeed,
@@ -496,9 +509,10 @@ class AppState extends ChangeNotifier {
       'brands': brands.map((e) => e.toJson()).toList(),
       // Tiket lama yang sedang dilihat tetap ada di memori selama sesi ini,
       // tapi tidak ikut ditulis ke disk.
-      'riwayat': pangkasRiwayat(riwayat, DateTime.now())
-          .map((e) => e.toJson())
-          .toList(),
+      'riwayat': pangkasRiwayat(
+        riwayat,
+        DateTime.now(),
+      ).map((e) => e.toJson()).toList(),
     });
   }
 
@@ -514,7 +528,7 @@ class AppState extends ChangeNotifier {
     _toastTimer?.cancel();
     _netSub?.cancel();
     pelangganCtl.dispose();
-    temaGelap.dispose();
+    temaMode.dispose();
     minyakBufNotifier.dispose();
     bufNotifier.dispose();
     toastNotifier.dispose();
@@ -696,8 +710,10 @@ class AppState extends ChangeNotifier {
       return;
     }
     final sudahDiServer = !belumTerkirim(t.status);
-    ubah(() => riwayat = riwayat.where((r) => r.id != t.id).toList(),
-        simpan: true);
+    ubah(
+      () => riwayat = riwayat.where((r) => r.id != t.id).toList(),
+      simpan: true,
+    );
     tampilToast('Tiket ${t.pelanggan} dihapus');
 
     // Tiket yang belum pernah terkirim tidak ada di server — tidak ada yang
@@ -782,8 +798,10 @@ class AppState extends ChangeNotifier {
 
   /// Hapus sungguhan: barisnya lenyap dari HP ini dan dari server.
   void hapusMerek(String nama) {
-    ubah(() => brands = brands.where((b) => b.nama != nama).toList(),
-        simpan: true);
+    ubah(
+      () => brands = brands.where((b) => b.nama != nama).toList(),
+      simpan: true,
+    );
     tampilToast('$nama dihapus');
     unawaited(_hapusDiServer(nama));
   }
@@ -810,9 +828,11 @@ class AppState extends ChangeNotifier {
 
   /// Geser tanggal yang dilihat di Daftar; [hari] null berarti kembali hari ini.
   void pilihTanggal({int? hari}) {
-    ubah(() => tanggal = hari == null
-        ? DateTime.now()
-        : tanggal.add(Duration(days: hari)));
+    ubah(
+      () => tanggal = hari == null
+          ? DateTime.now()
+          : tanggal.add(Duration(days: hari)),
+    );
     unawaited(tarikTiket());
   }
 
@@ -894,9 +914,11 @@ class AppState extends ChangeNotifier {
         ubah(() => brands = hasil.daftar, simpan: true);
       }
       if (!diam) {
-        tampilToast(hasil.kirim.isNotEmpty
-            ? 'Merek tersinkron · ${hasil.kirim.length} terkirim'
-            : 'Merek sudah terbaru');
+        tampilToast(
+          hasil.kirim.isNotEmpty
+              ? 'Merek tersinkron · ${hasil.kirim.length} terkirim'
+              : 'Merek sudah terbaru',
+        );
       }
     } on Object catch (e) {
       if (!diam) tampilToast('Gagal sync merek: $e');
@@ -998,9 +1020,11 @@ class AppState extends ChangeNotifier {
 
     void tandai(String id, String status) {
       riwayat = riwayat
-          .map((r) => r.id == id && r.status != status
-              ? r.copyWith(status: status)
-              : r)
+          .map(
+            (r) => r.id == id && r.status != status
+                ? r.copyWith(status: status)
+                : r,
+          )
           .toList();
       berubah = true;
     }

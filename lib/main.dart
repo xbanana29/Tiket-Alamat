@@ -13,15 +13,10 @@ void main() {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final state = AppState();
   runApp(TiketAlamatApp(state: state));
-  // darkMode yang dimuat dari disk memicu MaterialApp membangun ulang, dan
+  // Mode tema yang dimuat dari disk memicu MaterialApp membangun ulang, dan
   // palet ikut diterapkan di `builder` — tidak perlu disetel di sini.
   state.init();
 }
-
-/// Warna bilah navigasi Android — sengaja beda tipis dari latar aplikasi
-/// supaya batas bawah layar tetap terbaca.
-const _navTerang = Color(0xFFE4E2E2);
-const _navGelap = Color(0xFF141414);
 
 /// Batasi lebar isi ke ukuran ponsel dan taruh di tengah.
 ///
@@ -49,9 +44,7 @@ class _BingkaiPonsel extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: _lebarMaksimum),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              border: Border.symmetric(
-                vertical: BorderSide(color: divider),
-              ),
+              border: Border.symmetric(vertical: BorderSide(color: divider)),
             ),
             child: child,
           ),
@@ -97,47 +90,49 @@ class _TiketAlamatAppState extends State<TiketAlamatApp>
 
   @override
   Widget build(BuildContext context) {
-    // MaterialApp hanya mendengarkan darkMode. Sisa AppState sampai ke widget
+    // MaterialApp hanya mendengarkan mode tema. Sisa AppState sampai ke widget
     // lewat AppScope, jadi ketukan numpad atau toast tidak lagi membangun
     // ulang MaterialApp beserta temanya.
     return AppScope(
       state: widget.state,
       child: ValueListenableBuilder(
-        valueListenable: widget.state.temaGelap,
-        builder: (_, dark, _) {
+        valueListenable: widget.state.temaMode,
+        builder: (_, mode, _) {
           return MaterialApp(
             title: kAppName,
             debugShowCheckedModeBanner: false,
             theme: temaTerangApp,
             darkTheme: temaGelapApp,
-            themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+            themeMode: mode,
+            // Tanpa animasi: palet global diambil dari tema di bawah, dan
+            // tema yang sedang dianimasikan masih membawa palet lama di
+            // frame-frame pertamanya.
+            themeAnimationDuration: Duration.zero,
             builder: (context, child) {
-              // Palet global sudah diganti oleh setter `AppState.darkMode`.
-              final overlay = dark
-                  // Nama SystemUiOverlayStyle.light/.dark menyesatkan: `.dark`
-                  // menyetel ikon navigasi jadi PUTIH. Dipakai bersama warna
-                  // navbar terang, tombol navigasi Android jadi tak terlihat.
-                  // Kecerahan ikon karena itu ditulis eksplisit, tidak
-                  // mengandalkan preset.
-                  ? const SystemUiOverlayStyle(
-                      statusBarColor: Colors.transparent,
-                      statusBarIconBrightness: Brightness.light,
-                      statusBarBrightness: Brightness.dark,
-                      systemNavigationBarColor: _navGelap,
-                      systemNavigationBarIconBrightness: Brightness.light,
-                      systemNavigationBarDividerColor: _navGelap,
-                    )
-                  : const SystemUiOverlayStyle(
-                      statusBarColor: Colors.transparent,
-                      statusBarIconBrightness: Brightness.dark,
-                      statusBarBrightness: Brightness.light,
-                      // Sedikit lebih gelap dari latar aplikasi supaya navbar
-                      // punya batas yang terlihat, bukan menyatu jadi bidang
-                      // putih tanpa ujung.
-                      systemNavigationBarColor: _navTerang,
-                      systemNavigationBarIconBrightness: Brightness.dark,
-                      systemNavigationBarDividerColor: _navTerang,
-                    );
+              // Tema yang benar-benar dipakai — termasuk mode Sistem, yang
+              // ikut berubah saat tema HP diganti. Setiap widget yang membaca
+              // AppScope juga bergantung pada Theme (lihat AppScope.of), jadi
+              // semuanya dibangun ulang dengan palet baru di frame yang sama.
+              final p = Theme.of(context).extension<AppPalette>()!;
+              applyPalette(p);
+              final dark = p.brightness == Brightness.dark;
+              // Nama SystemUiOverlayStyle.light/.dark menyesatkan: `.dark`
+              // menyetel ikon navigasi jadi PUTIH. Kecerahan ikon karena itu
+              // ditulis eksplisit, tidak mengandalkan preset.
+              final overlay = SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: dark
+                    ? Brightness.light
+                    : Brightness.dark,
+                statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+                // Sewarna NavigationBar di atasnya, supaya keduanya terbaca
+                // sebagai satu bidang.
+                systemNavigationBarColor: p.surface,
+                systemNavigationBarIconBrightness: dark
+                    ? Brightness.light
+                    : Brightness.dark,
+                systemNavigationBarDividerColor: p.surface,
+              );
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: overlay,
                 child: _BingkaiPonsel(child: child ?? const SizedBox.shrink()),

@@ -57,7 +57,15 @@ android {
     }
 
     buildTypes {
+        // Build debug dipasang berdampingan dengan aplikasi produksi di HP
+        // gudang (paket .dev, nama "Tiket Alamat DEV"), jadi uji coba tidak
+        // pernah menimpa data tiket aplikasi yang sedang dipakai.
+        debug {
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Tiket Alamat DEV")
+        }
         release {
+            resValue("string", "app_name", "Tiket Alamat")
             // Tanpa key.properties tetap pakai kunci debug supaya
             // `flutter run --release` di mesin developer tetap jalan.
             signingConfig = if (adaKunciRilis) {

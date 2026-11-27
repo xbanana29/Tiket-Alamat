@@ -27,20 +27,25 @@ class WatermarkBy extends StatelessWidget {
   }
 }
 
-
 /// Akses AppState tanpa paket state-management: satu InheritedNotifier.
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child})
     : super(notifier: state);
 
-  static AppState of(BuildContext c) =>
-      c.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
+  /// Ikut bergantung pada Theme: warna UI dibaca dari palet global, jadi
+  /// setiap pembaca AppState harus dibangun ulang saat tema berganti —
+  /// termasuk saat mode Sistem mengikuti tema HP.
+  static AppState of(BuildContext c) {
+    Theme.of(c);
+    return c.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
+  }
 }
 
 /// Ukuran font dasar layar, mengikuti pengaturan "Ukuran huruf".
-double fs(BuildContext c) => (kBaseFontSize * AppScope.of(c).scale).roundToDouble();
+double fs(BuildContext c) =>
+    (kBaseFontSize * AppScope.of(c).scale).roundToDouble();
 
-/// Area yang bisa diketuk tanpa efek ripple — rancangan pakai div polos.
+/// Area yang bisa diketuk tanpa efek ripple.
 class Tap extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget child;
@@ -54,16 +59,18 @@ class Tap extends StatelessWidget {
   );
 }
 
-/// Baris tombol segmen (inversi saat terpilih) — dipakai untuk tab, pilihan font,
-/// lebar kertas, rangkap, kategori.
+/// Pilihan segmen (tab kecil, ukuran huruf, lebar kertas, rangkap,
+/// kategori) — SegmentedButton Material 3 bergaya AmePOS: terpilih diberi
+/// tint hijau, bukan dibalik hitam.
+///
+/// [berbingkai] false = segmen mengisi satu baris penuh di bawah header, jadi
+/// diberi jarak dari tepi layar.
 class Segmen extends StatelessWidget {
   final List<String> labels;
   final int terpilih;
   final ValueChanged<int> onPilih;
   final double fontSize;
-  final EdgeInsets padding;
   final bool berbingkai;
-  final TextAlign align;
 
   const Segmen({
     super.key,
@@ -71,51 +78,48 @@ class Segmen extends StatelessWidget {
     required this.terpilih,
     required this.onPilih,
     required this.fontSize,
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
     this.berbingkai = true,
-    this.align = TextAlign.center,
+    // Tidak dipakai lagi; tetap diterima supaya pemanggil lama tidak pecah.
+    EdgeInsets? padding,
+    TextAlign? align,
   });
 
   @override
   Widget build(BuildContext c) {
-    final row = Row(
-      children: [
+    final tombol = SegmentedButton<int>(
+      segments: [
         for (var i = 0; i < labels.length; i++)
-          Expanded(
-            child: Tap(
-              onTap: () => onPilih(i),
-              child: Container(
-                padding: padding,
-                decoration: BoxDecoration(
-                  color: i == terpilih ? ink : bg,
-                  border: i == labels.length - 1
-                      ? null
-                      : Border(right: BorderSide(color: divider)),
-                ),
-                child: Text(
-                  labels[i],
-                  textAlign: align,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: fontSize * .06,
-                    color: i == terpilih ? bg : ink,
-                  ),
-                ),
-              ),
-            ),
+          ButtonSegment(
+            value: i,
+            label: Text(labels[i], maxLines: 1, softWrap: false),
           ),
       ],
+      selected: {terpilih},
+      onSelectionChanged: (v) => onPilih(v.first),
+      showSelectedIcon: false,
+      expandedInsets: EdgeInsets.zero,
+      style: ButtonStyle(
+        textStyle: WidgetStatePropertyAll(
+          TextStyle(
+            fontFamily: 'Archivo',
+            fontSize: fontSize,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 8),
+        ),
+      ),
     );
-    if (!berbingkai) return row;
-    return Container(
-      decoration: BoxDecoration(border: Border.all(color: ink, width: 2)),
-      child: row,
+    if (berbingkai) return tombol;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: tombol,
     );
   }
 }
 
-/// Label mikro uppercase di atas sebuah kolom pengaturan.
+/// Label kecil di atas sebuah isian.
 class LabelMikro extends StatelessWidget {
   final String teks;
   final Color? color;
@@ -124,52 +128,113 @@ class LabelMikro extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final f = fs(c);
-    return Text(
-      teks.toUpperCase(),
-      style: micro(f, color: color ?? neutral600),
-    );
+    return Text(teks, style: micro(f, color: color ?? neutral600));
   }
 }
 
-/// Tombol utama merah (Cetak tiket, Simpan, Mulai sesi).
-class TombolAksi extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final Color? warna;
-  final Color teks;
-  const TombolAksi(
-    this.label, {
-    super.key,
-    required this.onTap,
-    this.warna,
-    this.teks = Colors.white,
-  });
+/// Judul bagian bergaya AmePOS: huruf kapital kecil berwarna hijau.
+class JudulBagian extends StatelessWidget {
+  final String teks;
+  const JudulBagian(this.teks, {super.key});
 
   @override
   Widget build(BuildContext c) {
     final f = fs(c);
-    return Tap(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        color: warna ?? accent,
-        child: Text(
-          label.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: f * .88,
-            fontWeight: FontWeight.w800,
-            letterSpacing: f * .88 * .06,
-            color: teks,
-          ),
-        ),
+    return Text(
+      teks.toUpperCase(),
+      style: TextStyle(
+        fontSize: f * .74,
+        fontWeight: FontWeight.w700,
+        letterSpacing: f * .74 * .07,
+        color: accent700,
       ),
     );
   }
 }
 
-/// Kolom teks bergaya rancangan (border tipis, radius 0).
+/// Chip status: tint 14% dari warnanya, teks berwarna sama — seperti
+/// `OnlineStatusChip` AmePOS.
+class ChipNada extends StatelessWidget {
+  final String label;
+  final Color warna;
+  final Color? latar;
+  final Widget? depan;
+  const ChipNada(
+    this.label, {
+    super.key,
+    required this.warna,
+    this.latar,
+    this.depan,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final f = fs(c);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: latar ?? warna.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(Sudut.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (depan != null) ...[depan!, const SizedBox(width: 6)],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: f * .74,
+              fontWeight: FontWeight.w600,
+              color: warna,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tombol penuh lebar (Mulai sesi, Simpan, Tes cetak): hijau berisi untuk
+/// aksi utama, bergaris untuk aksi [sekunder] — FilledButton/OutlinedButton
+/// AmePOS.
+class TombolAksi extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool sekunder;
+  const TombolAksi(
+    this.label, {
+    super.key,
+    required this.onTap,
+    this.sekunder = false,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final f = fs(c);
+    final gaya = TextStyle(
+      fontFamily: 'Archivo',
+      fontSize: f * .92,
+      fontWeight: FontWeight.w600,
+    );
+    final isi = Text(label, textAlign: TextAlign.center);
+    return SizedBox(
+      width: double.infinity,
+      child: sekunder
+          ? OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(textStyle: gaya),
+              child: isi,
+            )
+          : FilledButton(
+              onPressed: onTap,
+              style: FilledButton.styleFrom(textStyle: gaya),
+              child: isi,
+            ),
+    );
+  }
+}
+
+/// Kolom teks. Gaya datang dari inputDecorationTheme.
 class Isian extends StatelessWidget {
   final TextEditingController controller;
   final String? hint;
@@ -193,7 +258,6 @@ class Isian extends StatelessWidget {
       // ("REJEKI" jadi "REJEKINYA") dan itu ikut tercetak di tiket.
       autocorrect: false,
       enableSuggestions: false,
-      cursorColor: accent,
       style: TextStyle(
         fontSize: fontSize ?? f * .95,
         fontWeight: FontWeight.w600,
@@ -204,7 +268,8 @@ class Isian extends StatelessWidget {
   }
 }
 
-/// Sheet bawah bergaya rancangan: header judul + ✕, isi bisa digulir, footer aksi.
+/// Lembar bawah: sudut atas membulat, judul + tombol tutup, isi bisa
+/// digulir, footer aksi. Seperti bottom sheet AmePOS online.
 class SheetBawah extends StatelessWidget {
   final String judul;
   final VoidCallback onTutup;
@@ -226,6 +291,7 @@ class SheetBawah extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final f = fs(c);
+    final latar = Theme.of(c).dialogTheme.backgroundColor ?? surface;
     // Material diperlukan karena sheet ini juga dipakai lewat showDialog,
     // di luar Scaffold — TextField di dalamnya butuh ancestor Material.
     return Material(
@@ -237,50 +303,48 @@ class SheetBawah extends StatelessWidget {
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(c).size.height * maxTinggi,
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: bg,
-                border: Border(top: BorderSide(color: ink, width: 2)),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(Sudut.xl),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: ink, width: 2),
+              child: ColoredBox(
+                color: latar,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 32,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: neutral500.withValues(alpha: .5),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            judul.toUpperCase(),
-                            style: heading(f, height: 1.1),
-                          ),
-                        ),
-                        Tap(
-                          onTap: onTutup,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 8, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              '✕',
-                              style: TextStyle(
-                                fontSize: f * .9,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              judul,
+                              style: heading(f * 1.1, height: 1.2),
                             ),
                           ),
-                        ),
-                      ],
+                          IconButton(
+                            onPressed: onTutup,
+                            tooltip: 'Tutup',
+                            icon: Icon(Icons.close, color: neutral600),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Flexible(
-                    child: Container(color: isiWarna ?? bg, child: isi),
-                  ),
-                  footer,
-                ],
+                    Flexible(
+                      child: Container(color: isiWarna ?? latar, child: isi),
+                    ),
+                    footer,
+                  ],
+                ),
               ),
             ),
           ),
@@ -290,52 +354,60 @@ class SheetBawah extends StatelessWidget {
   }
 }
 
-/// Footer dua tombol: Batal (polos) + aksi utama (merah).
+/// Footer dua tombol: batal (garis) + aksi utama (hijau).
 class FooterDua extends StatelessWidget {
   final String kiri;
   final String kanan;
   final VoidCallback onKiri;
   final VoidCallback onKanan;
+
+  /// Aksi kanan merusak (hapus): tombolnya merah, bukan hijau.
+  final bool bahaya;
   const FooterDua({
     super.key,
     required this.kiri,
     required this.kanan,
     required this.onKiri,
     required this.onKanan,
+    this.bahaya = false,
   });
 
   @override
   Widget build(BuildContext c) {
     final f = fs(c);
     final gaya = TextStyle(
-      fontSize: f * .85,
-      fontWeight: FontWeight.w700,
-      letterSpacing: f * .85 * .06,
+      fontFamily: 'Archivo',
+      fontSize: f * .92,
+      fontWeight: FontWeight.w600,
     );
     return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: ink, width: 2)),
+        border: Border(top: BorderSide(color: divider)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Tap(
-              onTap: onKiri,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  border: Border(right: BorderSide(color: divider)),
-                ),
-                child: Text(
-                  kiri.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: gaya,
-                ),
-              ),
+            child: OutlinedButton(
+              onPressed: onKiri,
+              style: OutlinedButton.styleFrom(textStyle: gaya),
+              child: Text(kiri),
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: TombolAksi(kanan, onTap: onKanan),
+            flex: 2,
+            child: FilledButton(
+              onPressed: onKanan,
+              style: FilledButton.styleFrom(
+                textStyle: gaya,
+                backgroundColor: bahaya ? Theme.of(c).colorScheme.error : null,
+                foregroundColor: bahaya
+                    ? Theme.of(c).colorScheme.onError
+                    : null,
+              ),
+              child: Text(kanan),
+            ),
           ),
         ],
       ),
@@ -343,15 +415,17 @@ class FooterDua extends StatelessWidget {
   }
 }
 
-/// Papan angka 1-9 / C / 0 / aksi terakhir.
+/// Papan angka 1-9 / C / 0 / aksi terakhir — tombol berisi bersudut 8
+/// dengan jarak 3, seperti `OnlineNumKeypad` AmePOS.
 class Numpad extends StatelessWidget {
   final void Function(String) onDigit;
   final VoidCallback onClear;
   final VoidCallback onAkhir;
+
+  /// '⌫' hapus satu digit, '✓' konfirmasi, '✕' batalkan barang.
   final String labelAkhir;
   final bool akhirMerah;
   final int kolom;
-  final double tinggiPad;
 
   const Numpad({
     super.key,
@@ -361,54 +435,112 @@ class Numpad extends StatelessWidget {
     required this.labelAkhir,
     this.akhirMerah = true,
     this.kolom = 4,
-    this.tinggiPad = 14,
+    // Tidak dipakai lagi; tetap diterima supaya pemanggil lama tidak pecah.
+    double? tinggiPad,
   });
 
   @override
   Widget build(BuildContext c) {
     final f = fs(c);
+    final ikonAkhir = switch (labelAkhir) {
+      '⌫' => Icons.backspace_outlined,
+      '✕' => Icons.close,
+      _ => Icons.check,
+    };
+    final batal = labelAkhir == '✕';
     final tombol = <Widget>[
       for (final d in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
-        _tombol(f, d, bg, ink, () => onDigit(d)),
-      _tombol(f, 'C', neutral200, ink, onClear),
-      _tombol(f, '0', bg, ink, () => onDigit('0')),
-      _tombol(
-        f,
-        labelAkhir,
-        akhirMerah ? accent : neutral200,
-        akhirMerah ? Colors.white : ink,
-        onAkhir,
+        _Kunci(
+          onTap: () => onDigit(d),
+          latar: tombolBg,
+          child: _angka(f, d, tombolFg),
+        ),
+      _Kunci(
+        onTap: onClear,
+        latar: neutral200,
+        semantik: 'Kosongkan',
+        child: _angka(f, 'C', ink),
+      ),
+      _Kunci(
+        onTap: () => onDigit('0'),
+        latar: tombolBg,
+        child: _angka(f, '0', tombolFg),
+      ),
+      _Kunci(
+        onTap: onAkhir,
+        latar: !akhirMerah ? neutral200 : (batal ? bahaya : accent),
+        semantik: switch (labelAkhir) {
+          '⌫' => 'Hapus satu angka',
+          '✕' => 'Batalkan barang',
+          _ => 'Simpan jumlah',
+        },
+        child: Icon(
+          ikonAkhir,
+          size: f * 1.5,
+          color: !akhirMerah
+              ? ink
+              : (batal ? Theme.of(c).colorScheme.onError : onAccent),
+        ),
       ),
     ];
-    return GridView.count(
-      crossAxisCount: kolom,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1 / .48,
-      children: tombol,
+    return Padding(
+      padding: const EdgeInsets.all(5),
+      child: GridView.count(
+        crossAxisCount: kolom,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1 / .5,
+        children: tombol,
+      ),
     );
   }
 
-  Widget _tombol(double f, String label, Color warna, Color teks, VoidCallback t) =>
-      Tap(
-        onTap: t,
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: warna,
-            border: Border(
-              right: BorderSide(color: divider),
-              bottom: BorderSide(color: divider),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: f * 1.25,
-              fontWeight: FontWeight.w800,
-              color: teks,
-            ),
+  Widget _angka(double f, String d, Color warna) => Text(
+    d,
+    style: TextStyle(
+      fontSize: f * 1.4,
+      fontWeight: FontWeight.w600,
+      color: warna,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  );
+}
+
+class _Kunci extends StatelessWidget {
+  final VoidCallback onTap;
+  final Color latar;
+  final Widget child;
+  final String? semantik;
+  const _Kunci({
+    required this.onTap,
+    required this.latar,
+    required this.child,
+    this.semantik,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final r = BorderRadius.circular(Sudut.sm);
+    return Padding(
+      padding: const EdgeInsets.all(3),
+      child: Semantics(
+        button: true,
+        label: semantik,
+        child: Material(
+          color: latar,
+          borderRadius: r,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: r,
+            // Ketukan beruntun di numpad: highlight cepat tanpa ripple yang
+            // tertinggal di tombol sebelumnya.
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: accent.withValues(alpha: .18),
+            child: Center(child: child),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

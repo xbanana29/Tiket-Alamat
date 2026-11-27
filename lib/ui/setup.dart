@@ -32,18 +32,17 @@ class _SetupGateState extends State<SetupGate> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                   decoration: BoxDecoration(
-                    color: neutral100,
-                    border: Border.all(color: ink, width: 2),
+                    color: accent200,
+                    borderRadius: BorderRadius.circular(Sudut.lg),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        kAppNameUpper,
-                        style: heading(f * 1.2)
-                            .copyWith(letterSpacing: -f * .01),
+                        kAppName,
+                        style: heading(f * 1.2, color: accent800),
                       ),
                       const SizedBox(height: 6),
                       WatermarkBy(fontSize: f * .72, align: TextAlign.left),
@@ -52,9 +51,8 @@ class _SetupGateState extends State<SetupGate> {
                 ),
                 const SizedBox(height: 28),
                 Text(
-                  'SIAPA YANG\nBERTUGAS?',
-                  style: heading(f * 1.9, height: 1.05)
-                      .copyWith(letterSpacing: -f * 1.9 * .02),
+                  'Siapa yang\nbertugas?',
+                  style: heading(f * 1.9, height: 1.1),
                 ),
                 const SizedBox(height: 14),
                 Text(

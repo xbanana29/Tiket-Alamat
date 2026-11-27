@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:pocketbase/pocketbase.dart' show ClientException;
 import 'package:tiket_gudang/brand.dart';
 import 'package:tiket_gudang/models.dart';
@@ -732,6 +733,22 @@ void main() {
       expect(a.queue, 1);
       a.riwayat = [_antri('a').copyWith(status: statusTerkirim)];
       expect(a.queue, 0);
+    });
+  });
+
+  group('bacaTemaMode', () {
+    test('darkMode lama: false berarti ikut sistem, true berarti gelap', () {
+      expect(bacaTemaMode({'darkMode': false}), ThemeMode.system);
+      expect(bacaTemaMode({'darkMode': true}), ThemeMode.dark);
+      expect(bacaTemaMode({}), ThemeMode.system);
+    });
+
+    test('temaMode baru menang atas darkMode lama', () {
+      expect(
+        bacaTemaMode({'temaMode': 'light', 'darkMode': true}),
+        ThemeMode.light,
+      );
+      expect(bacaTemaMode({'temaMode': 'ngawur'}), ThemeMode.system);
     });
   });
 }

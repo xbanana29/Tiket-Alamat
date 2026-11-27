@@ -28,6 +28,7 @@ class Perangkat {
 /// ganti ke flutter_bluetooth_serial.
 class Printer {
   CapabilityProfile? _profile;
+
   /// MAC yang terakhir berhasil disambung di sesi proses ini.
   String? _macAktif;
 
@@ -202,8 +203,10 @@ class Printer {
           width: PosTextSize.size2,
         ),
       ),
-      ...g.text(ascii('$kAppName · $lebarMm mm'),
-          styles: const PosStyles(align: PosAlign.center)),
+      ...g.text(
+        ascii('$kAppName · $lebarMm mm'),
+        styles: const PosStyles(align: PosAlign.center),
+      ),
       ...g.hr(),
       ..._feedLaluPotong(g, paperFeed),
     ];
@@ -240,24 +243,28 @@ class Printer {
     const tengah = PosStyles(align: PosAlign.center);
     final b = <int>[...g.reset()];
 
-    b.addAll(g.text(
-      copies == 1
-          ? 'TANDA AMBIL BARANG'
-          : (index == 0 ? 'RANGKAP 1 - KULI MUAT' : 'RANGKAP 2 - PELANGGAN'),
-      styles: const PosStyles(align: PosAlign.center, bold: true),
-    ));
+    b.addAll(
+      g.text(
+        copies == 1
+            ? 'TANDA AMBIL BARANG'
+            : (index == 0 ? 'RANGKAP 1 - KULI MUAT' : 'RANGKAP 2 - PELANGGAN'),
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      ),
+    );
     b.addAll(g.hr());
 
     // Nama pelanggan besar — bagian paling penting, dibaca dari jauh oleh kuli muat.
-    b.addAll(g.text(
-      ascii(t.pelanggan),
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
+    b.addAll(
+      g.text(
+        ascii(t.pelanggan),
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
       ),
-    ));
+    );
     b.addAll(g.text(ascii(fmtWaktuCetak(t.waktu)), styles: tengah));
     b.addAll(g.text(ascii('Petugas: ${t.petugas}'), styles: tengah));
     b.addAll(g.hr(ch: '='));
@@ -265,55 +272,65 @@ class Printer {
     if (t.isMinyak) {
       // Teks biasa saja. size2 = batas andal GS! di RPP02N/sejenis
       // (size3–8 sering diabaikan printer → angka tetap kecil).
-      b.addAll(g.text(
-        '${t.jerigen}',
-        styles: const PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
-        ),
-      ));
-      b.addAll(g.text(
-        'JERIGEN MINYAK',
-        styles: const PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size1,
-          width: PosTextSize.size1,
-        ),
-      ));
-    } else {
-      // Sak dicetak ukuran normal (1x): daftar merek bisa panjang, dan pada
-      // 2x nama merek panjang terpotong ke baris berikutnya.
-      for (final baris in t.barisTeks) {
-        b.addAll(g.text(
-          ascii(baris),
+      b.addAll(
+        g.text(
+          '${t.jerigen}',
           styles: const PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
+      );
+      b.addAll(
+        g.text(
+          'JERIGEN MINYAK',
+          styles: const PosStyles(
+            align: PosAlign.center,
             bold: true,
             height: PosTextSize.size1,
             width: PosTextSize.size1,
           ),
-        ));
+        ),
+      );
+    } else {
+      // Sak dicetak ukuran normal (1x): daftar merek bisa panjang, dan pada
+      // 2x nama merek panjang terpotong ke baris berikutnya.
+      for (final baris in t.barisTeks) {
+        b.addAll(
+          g.text(
+            ascii(baris),
+            styles: const PosStyles(
+              bold: true,
+              height: PosTextSize.size1,
+              width: PosTextSize.size1,
+            ),
+          ),
+        );
       }
     }
 
     b.addAll(g.hr(ch: '='));
-    b.addAll(g.row([
-      PosColumn(text: 'TOTAL', width: 6, styles: const PosStyles(bold: true)),
-      PosColumn(
-        text: ascii(t.totalLabel.toUpperCase()),
-        width: 6,
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      ),
-    ]));
+    b.addAll(
+      g.row([
+        PosColumn(text: 'TOTAL', width: 6, styles: const PosStyles(bold: true)),
+        PosColumn(
+          text: ascii(t.totalLabel.toUpperCase()),
+          width: 6,
+          styles: const PosStyles(bold: true, align: PosAlign.right),
+        ),
+      ]),
+    );
     // Font B (kecil) supaya catatan kaki ini muat 2 baris di 58 mm dan 1 baris
     // di 80 mm. Dengan font A, "…tusuk di paku" saja sudah 35 karakter di
     // kertas 32 karakter — melipat jadi tiga baris berantakan.
-    b.addAll(g.text(
-      'Tanda terima gudang - tusuk di paku setelah barang keluar',
-      styles: const PosStyles(fontType: PosFontType.fontB),
-    ));
+    b.addAll(
+      g.text(
+        'Tanda terima gudang - tusuk di paku setelah barang keluar',
+        styles: const PosStyles(fontType: PosFontType.fontB),
+      ),
+    );
     b.addAll(_feedLaluPotong(g, paperFeed));
     return b;
   }
@@ -347,10 +364,28 @@ class Printer {
   /// diketik petugas dan bisa memuat karakter apa saja.
   static String ascii(String s) {
     const padanan = {
-      '·': '-', '•': '-', '–': '-', '—': '-', '−': '-',
-      '“': '"', '”': '"', '‘': "'", '’': "'", '´': "'", '`': "'",
-      '…': '...', '×': 'x', '₂': '2', '°': ' ',
-      'é': 'e', 'è': 'e', 'á': 'a', 'à': 'a', 'í': 'i', 'ó': 'o', 'ú': 'u',
+      '·': '-',
+      '•': '-',
+      '–': '-',
+      '—': '-',
+      '−': '-',
+      '“': '"',
+      '”': '"',
+      '‘': "'",
+      '’': "'",
+      '´': "'",
+      '`': "'",
+      '…': '...',
+      '×': 'x',
+      '₂': '2',
+      '°': ' ',
+      'é': 'e',
+      'è': 'e',
+      'á': 'a',
+      'à': 'a',
+      'í': 'i',
+      'ó': 'o',
+      'ú': 'u',
     };
     var h = s;
     padanan.forEach((k, v) => h = h.replaceAll(k, v));
